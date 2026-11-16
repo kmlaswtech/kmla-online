@@ -297,8 +297,9 @@ Every Supabase call lives in a feature's `data/`. **Called from** is relative to
 <!-- rpc:end -->
 
 External-only RPCs are outside the table because no app code calls them:
-`get_external_identity` (`12-authorization.sql`) is the 큼온 위키 `kmla-sign-in` Edge Function's
-identity contract (accounts §4.8). Do not call it from app code or change its return shape alone.
+`get_external_identity` (`12-authorization.sql`) is the identity contract for 연계 서비스 such as
+the 큼온 위키 `kmla-sign-in` Edge Function (accounts §4.8). Do not call it from app code or change
+its return shape alone.
 
 ## Direct table access
 

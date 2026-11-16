@@ -143,10 +143,10 @@ $$;
 
 ALTER FUNCTION "public"."get_my_suspension"() OWNER TO "postgres";
 
--- 외부 서비스(큼온 위키)가 사용자 토큰으로 "승인된 KMLA Online 사용자인지"를 확인하는 안정 규약이다.
+-- 연계 서비스(현재 큼온 위키)가 사용자 토큰으로 "승인된 KMLA Online 사용자인지"를 확인하는 안정 규약이다.
 -- 앱 코드는 호출하지 않는다. 반환 형태(열 이름·타입·순서)를 바꾸면 kmla-wiki의 `kmla-sign-in`
 -- Edge Function도 함께 바꿔야 한다. 행의 유무가 승인 여부이고, 열은 계정을 잇는 내부 번호뿐이다.
--- 유형·기수 같은 학적이나 이름·연락처를 더하면 개인정보 처리방침의 위키 제공 항목도 늘어난다.
+-- 개인정보 처리방침은 연계 서비스에 이 둘만 전달한다고 고지하므로, 다른 열을 더하면 처리방침도 고쳐야 한다.
 CREATE OR REPLACE FUNCTION "public"."get_external_identity"() RETURNS TABLE("profile_id" bigint)
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO ''
