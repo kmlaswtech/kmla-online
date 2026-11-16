@@ -3,11 +3,12 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(15);
 
--- 외부 서비스(큼온 위키)용 안정 규약. 반환 형태가 바뀌면 위키의 kmla-sign-in도 바뀌어야 하므로 고정한다.
+-- 외부 서비스(큼온 위키)용 안정 규약. 반환 형태가 바뀌면 위키의 kmla-sign-in과 개인정보 처리방침의
+-- 위키 제공 항목도 바뀌어야 하므로 고정한다.
 select is(
   pg_get_function_result('public.get_external_identity()'::regprocedure),
-  'TABLE(profile_id bigint, type profile_type, cohort smallint, is_returning_student boolean)',
-  'the external identity contract returns exactly profile_id, type, cohort, is_returning_student'
+  'TABLE(profile_id bigint)',
+  'the external identity contract returns only profile_id'
 );
 select is_definer('public', 'get_external_identity', array[]::name[], 'the external identity RPC is security definer');
 select ok(
@@ -84,26 +85,26 @@ grant execute on function pg_temp.act_as(uuid) to authenticated, anon;
 select pg_temp.act_as('10000000-0000-0000-0000-000000000701');
 set local role authenticated;
 select results_eq(
-  $$select profile_id, type::text, cohort, is_returning_student from public.get_external_identity()$$,
-  format($$values (%s::bigint, 'student'::text, 31::smallint, true)$$, current_setting('test.student_id')),
-  'an accepted student gets one row with its profile id, type, cohort, and returning flag'
+  $$select profile_id from public.get_external_identity()$$,
+  format($$values (%s::bigint)$$, current_setting('test.student_id')),
+  'an accepted student gets one row with its profile id'
 );
 reset role;
 
 select pg_temp.act_as('10000000-0000-0000-0000-000000000702');
 set local role authenticated;
 select results_eq(
-  $$select profile_id, type::text, cohort, is_returning_student from public.get_external_identity()$$,
-  format($$values (%s::bigint, 'teacher'::text, null::smallint, false)$$, current_setting('test.teacher_id')),
-  'an accepted teacher gets one row with a null cohort'
+  $$select profile_id from public.get_external_identity()$$,
+  format($$values (%s::bigint)$$, current_setting('test.teacher_id')),
+  'an accepted teacher gets one row'
 );
 reset role;
 
 select pg_temp.act_as('10000000-0000-0000-0000-000000000703');
 set local role authenticated;
 select results_eq(
-  $$select profile_id, type::text, cohort, is_returning_student from public.get_external_identity()$$,
-  format($$values (%s::bigint, 'alumni'::text, 25::smallint, false)$$, current_setting('test.alumni_id')),
+  $$select profile_id from public.get_external_identity()$$,
+  format($$values (%s::bigint)$$, current_setting('test.alumni_id')),
   'an accepted alumni gets one row'
 );
 reset role;

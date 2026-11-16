@@ -2350,10 +2350,7 @@ export type Database = {
       get_external_identity: {
         Args: Record<PropertyKey, never>
         Returns: {
-          cohort: number
-          is_returning_student: boolean
           profile_id: number
-          type: Database["public"]["Enums"]["profile_type"]
         }[]
       }
       get_group_invite: {
