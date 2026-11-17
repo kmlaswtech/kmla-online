@@ -32,6 +32,8 @@ const TYPE_BY_EXTENSION: Record<string, string> = {
   pdf: "application/pdf",
   txt: "text/plain",
   csv: "text/csv",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xls: "application/vnd.ms-excel",
   mp3: "audio/mpeg",
   m4a: "audio/mp4",
   wav: "audio/wav",

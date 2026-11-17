@@ -12,22 +12,9 @@
  */
 import { isAndroid, isIOS } from "~/shared/lib/install-platform";
 
-const PDF = "application/pdf";
-const XLSX =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const XLS = "application/vnd.ms-excel";
-
 const SIGNATURES: Record<string, { type: string; magic: readonly number[] }> = {
-  pdf: { type: PDF, magic: [0x25, 0x50, 0x44, 0x46, 0x2d] },
-  xlsx: { type: XLSX, magic: [0x50, 0x4b, 0x03, 0x04] },
-  xls: {
-    type: XLS,
-    magic: [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1],
-  },
+  pdf: { type: "application/pdf", magic: [0x25, 0x50, 0x44, 0x46, 0x2d] },
 };
-
-// Android Chrome은 엑셀을 열지 못해 Blob을 이름 없는 파일로 내려받는다. 그보다는 원래 이름의 다운로드가 낫다.
-const ANDROID_PREVIEW = new Set(["pdf"]);
 
 /** 블롭 주소를 연 탭이 읽어 가기 전에 거두지 않도록 넉넉히 둔다. */
 const REVOKE_DELAY_MS = 60_000;
@@ -50,12 +37,16 @@ export function sniffPreviewableDocument(
     : null;
 }
 
-/** 이 기기에서 탭하면 내려받는 대신 열어 줄 파일인가. 데스크톱은 늘 내려받는다. */
+/**
+ * 이 기기에서 탭하면 내려받는 대신 열어 줄 파일인가. 데스크톱은 늘 내려받는다.
+ *
+ * 엑셀은 열지 않는다. Android Chrome은 Blob을 이름 없는 파일로 내려받고, iOS는 새 탭이 `about:blank`에
+ * 멈춘다. 앱이 받아 저장하는 쪽(`useManagedDownload`)이 원래 이름을 지키고 공유 시트로 열 수 있다.
+ */
 export function shouldPreviewDocument(fileName: string): boolean {
   const extension = extensionOf(fileName);
   if (!extension || !(extension in SIGNATURES)) return false;
-  if (isIOS()) return true;
-  return isAndroid() && ANDROID_PREVIEW.has(extension);
+  return isIOS() || isAndroid();
 }
 
 /** 다운로드 링크의 클릭 핸들러. 열어 줄 파일이 아니면 링크를 건드리지 않고 `false`를 돌려준다. */
