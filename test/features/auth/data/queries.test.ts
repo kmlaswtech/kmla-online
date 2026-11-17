@@ -152,6 +152,27 @@ describe("auth queries", () => {
       kind: "missing",
     });
 
+    for (const status of [401, 403]) {
+      getAuthorizationDetails.mockResolvedValueOnce({
+        data: null,
+        error: new AuthApiError("invalid JWT", status, "bad_jwt"),
+      });
+      await expect(loadOAuthAuthorization("abc")).resolves.toEqual({
+        kind: "signed-out",
+      });
+    }
+
+    const limited = new AuthApiError(
+      "rate limited",
+      429,
+      "over_request_rate_limit",
+    );
+    getAuthorizationDetails.mockResolvedValueOnce({
+      data: null,
+      error: limited,
+    });
+    await expect(loadOAuthAuthorization("abc")).rejects.toBe(limited);
+
     // 서버 오류는 만료로 읽지 않는다. 다시 시도하면 될 요청을 사용자가 처음부터 하게 된다.
     const outage = new AuthApiError("unavailable", 503, "unexpected_failure");
     getAuthorizationDetails.mockResolvedValueOnce({

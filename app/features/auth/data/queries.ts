@@ -114,6 +114,8 @@ export async function listMyOwnedGroups(): Promise<OwnedGroup[]> {
 /**
  * 연계 서비스의 로그인 요청(OAuth 2.1 authorization). 이미 동의한 사용자에게는 인증 서버가
  * 상세 대신 돌아갈 주소만 준다. 없거나 만료된 요청은 인증 서버가 4xx로 거절하므로 `missing`이다.
+ * 401·403은 요청이 아니라 세션이 죽은 것이라 다시 로그인하면 이어지고, 429는 잠시 뒤 다시 하면
+ * 되는 요청이라 둘 다 만료로 읽지 않는다.
  */
 export async function loadOAuthAuthorization(
   authorizationId: string,
@@ -121,7 +123,14 @@ export async function loadOAuthAuthorization(
   const { data, error } =
     await getSupabase().auth.oauth.getAuthorizationDetails(authorizationId);
   if (error) {
-    if (isAuthApiError(error) && error.status < 500) return { kind: "missing" };
+    if (isAuthApiError(error)) {
+      if (error.status === 401 || error.status === 403) {
+        return { kind: "signed-out" };
+      }
+      if (error.status >= 400 && error.status < 500 && error.status !== 429) {
+        return { kind: "missing" };
+      }
+    }
     throw error;
   }
   if (!("authorization_id" in data)) {

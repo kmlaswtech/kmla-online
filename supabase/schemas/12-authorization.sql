@@ -228,8 +228,8 @@ GRANT ALL ON FUNCTION "private"."current_profile_id"() TO "authenticated";
 REVOKE ALL ON FUNCTION "public"."get_my_suspension"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_my_suspension"() TO "authenticated";
 
-REVOKE ALL ON FUNCTION "public"."get_external_identity"() FROM PUBLIC, "anon";
-GRANT ALL ON FUNCTION "public"."get_external_identity"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."get_external_identity"() FROM PUBLIC, "anon", "service_role";
+GRANT EXECUTE ON FUNCTION "public"."get_external_identity"() TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "oauth_member_check";
 GRANT EXECUTE ON FUNCTION "public"."get_external_identity"() TO "oauth_member_check";
 

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   loadOAuthAuthorization: vi.fn(),
   isAcceptedMember: vi.fn(),
   decideOAuthAuthorization: vi.fn(),
+  signOut: vi.fn(),
 }));
 
 vi.mock("~/features/auth", async (importOriginal) => ({
@@ -62,7 +63,19 @@ const consentLoader = (accepted: boolean) => () => ({
   kind: "consent" as const,
   clientName: "큼온 위키",
   accepted,
+  email: "student@kmla.hs.kr",
 });
+
+function expectLoginBack(response: Response) {
+  const location = new URL(
+    response.headers.get("Location") ?? "",
+    "https://kmla.online",
+  );
+  expect(location.pathname).toBe("/login");
+  expect(location.searchParams.get("next")).toBe(
+    "/oauth/consent?authorization_id=abc",
+  );
+}
 
 describe("OAuth consent route", () => {
   beforeEach(() => {
@@ -82,17 +95,15 @@ describe("OAuth consent route", () => {
   it("sends a signed-out visitor to login and back to the same request", async () => {
     mocks.loadAuthState.mockResolvedValue(null);
 
-    const response = await thrownResponse(() => load());
-
-    const location = new URL(
-      response.headers.get("Location") ?? "",
-      "https://kmla.online",
-    );
-    expect(location.pathname).toBe("/login");
-    expect(location.searchParams.get("next")).toBe(
-      "/oauth/consent?authorization_id=abc",
-    );
+    expectLoginBack(await thrownResponse(() => load()));
     expect(mocks.loadOAuthAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("sends the user to login again when the auth server rejects the session", async () => {
+    mocks.loadOAuthAuthorization.mockResolvedValue({ kind: "signed-out" });
+
+    expectLoginBack(await thrownResponse(() => load()));
+    expect(mocks.isAcceptedMember).not.toHaveBeenCalled();
   });
 
   it("returns straight to the service when the user already consented", async () => {
@@ -106,6 +117,8 @@ describe("OAuth consent route", () => {
     expect(response.headers.get("Location")).toBe(CALLBACK);
     // 동의 화면이 history에 남으면 뒤로가기가 다시 인증 서버를 거쳐 서비스로 튕긴다.
     expect(response.headers.get("X-Remix-Replace")).toBe("true");
+    // 판정 RPC가 실패해도 리다이렉트는 막지 않게 동의 화면에서만 부른다.
+    expect(mocks.isAcceptedMember).not.toHaveBeenCalled();
   });
 
   it("asks a first-time accepted member to allow or deny", async () => {
@@ -113,6 +126,7 @@ describe("OAuth consent route", () => {
       kind: "consent",
       clientName: "큼온 위키",
       accepted: true,
+      email: "student@kmla.hs.kr",
     });
     expect(mocks.loadOAuthAuthorization).toHaveBeenCalledWith("abc");
 
@@ -127,6 +141,16 @@ describe("OAuth consent route", () => {
     expect(screen.getByText(/회원 여부와 내부 식별 번호/)).toBeVisible();
     expect(screen.getByRole("button", { name: "허용" })).toHaveValue("approve");
     expect(screen.getByRole("button", { name: "거부" })).toHaveValue("deny");
+    expect(screen.getByText("student@kmla.hs.kr")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "다른 계정으로 로그인" }),
+    ).toHaveValue("switch-account");
+  });
+
+  it("signs out and returns to the same request to switch accounts", async () => {
+    expectLoginBack(await thrownResponse(() => act("switch-account")));
+    expect(mocks.signOut).toHaveBeenCalled();
+    expect(mocks.decideOAuthAuthorization).not.toHaveBeenCalled();
   });
 
   it("lets a member who is not accepted only deny", async () => {
@@ -159,6 +183,18 @@ describe("OAuth consent route", () => {
     expect(mocks.decideOAuthAuthorization).toHaveBeenCalledWith("abc", intent);
     expect(response.headers.get("Location")).toBe(CALLBACK);
     expect(response.headers.get("X-Remix-Replace")).toBe("true");
+  });
+
+  it("refuses an approval from a member who is no longer accepted", async () => {
+    mocks.isAcceptedMember.mockResolvedValue(false);
+
+    const result = await act("approve");
+
+    expect(mocks.decideOAuthAuthorization).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: { error: expect.stringMatching(/승인된 KMLA Online 회원만/) },
+      init: { status: 403 },
+    });
   });
 
   it("explains a missing or expired request", async () => {

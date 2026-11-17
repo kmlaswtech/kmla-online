@@ -24,12 +24,15 @@ export function getProfileDestination(
   next?: string | null,
 ): string {
   const safeNext = sanitizeLoginNext(next ?? null);
-  // 동의 화면은 승인 전 회원에게도 안내와 거부를 보여 줘야 연계 서비스가 결과를 받는다.
+  // 동의 화면은 승인 대기·가입 차단 회원에게도 안내와 거부를 보여 줘야 연계 서비스가 결과를 받는다.
+  // 가입을 마치지 않았으면 거부한 뒤 가입을 이어 갈 길이 없으므로 학교 프로필 설정이 먼저다.
   // 그 밖의 경로는 승인 회원만 돌려보낸다.
   if (
     safeNext &&
     isOAuthConsentPath(safeNext) &&
-    profile?.status !== "withdrawn"
+    (profile?.status === "pending" ||
+      profile?.status === "blocked" ||
+      profile?.status === "accepted")
   ) {
     return safeNext;
   }

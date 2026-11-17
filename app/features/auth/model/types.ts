@@ -45,6 +45,7 @@ export type FieldErrors = Partial<
 export type OAuthAuthorization =
   | { kind: "consent"; clientName: string }
   | { kind: "redirect"; url: string }
-  | { kind: "missing" };
+  | { kind: "missing" }
+  | { kind: "signed-out" };
 
 export type OAuthDecision = "approve" | "deny";
