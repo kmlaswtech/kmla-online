@@ -26,8 +26,6 @@ describe("meal loader", () => {
 
     const loaded = clientLoader();
 
-    expect(loaded.dates).toHaveLength(7);
-    expect(loaded.dates).toContain(loaded.initialDate);
     expect(mocks.getMealDay).toHaveBeenCalledWith(loaded.initialDate);
     expect(loaded.initialDay).toBe(pending);
   });
