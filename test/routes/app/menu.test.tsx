@@ -149,4 +149,40 @@ describe("menu route", () => {
       screen.queryByRole("link", { name: "바로가기" }),
     ).not.toBeInTheDocument();
   });
+
+  it("keeps school-life links that are not school sites behind the last tile", async () => {
+    const { user } = renderMenu("member", "teacher");
+
+    const sites = within(
+      screen.getByRole("navigation", { name: "학교 사이트" }),
+    );
+    expect(
+      sites.queryByRole("link", { name: /상벌점/ }),
+    ).not.toBeInTheDocument();
+
+    await user.click(sites.getByRole("button", { name: "학교생활 링크" }));
+
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "학교생활 링크" }),
+    );
+    const sheet = dialog.getByRole("link", {
+      name: "학생회 상벌점 확인, 구글 시트 (새 탭)",
+    });
+    expect(sheet).toHaveAttribute(
+      "href",
+      "https://docs.google.com/spreadsheets/d/165mM75gJkalE1geuobB60YWLSvPzzIe-ssecshSnwKk/edit#gid=48965601",
+    );
+    expect(sheet).toHaveAttribute("target", "_blank");
+    expect(sheet).toHaveAttribute("rel", "noreferrer");
+
+    const researchHub = dialog.getByRole("link", { name: /리서치 허브/ });
+    expect(researchHub).toHaveAttribute(
+      "href",
+      "https://minjok.net/paper/index.php",
+    );
+    expect(researchHub).toHaveAttribute("target", "_blank");
+    expect(dialog.getAllByRole("link")).toHaveLength(2);
+    // 목록만 보여 주고 따로 설명 문장은 두지 않는다.
+    expect(dialog.queryByText(/새 탭으로 열려요/)).not.toBeInTheDocument();
+  });
 });
