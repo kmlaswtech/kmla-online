@@ -36,31 +36,30 @@ describe("sniffPreviewableDocument", () => {
     expect(sniffPreviewableDocument("시간표.pdf", new Uint8Array(PDF))).toBe(
       "application/pdf",
     );
-    expect(sniffPreviewableDocument("명단.XLSX", new Uint8Array(ZIP))).toBe(
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
-    expect(sniffPreviewableDocument("예전.xls", new Uint8Array(CFB))).toBe(
-      "application/vnd.ms-excel",
+    expect(sniffPreviewableDocument("시간표.PDF", new Uint8Array(PDF))).toBe(
+      "application/pdf",
     );
   });
 
   it("rejects bytes that do not match the extension", () => {
     expect(sniffPreviewableDocument("a.pdf", new Uint8Array(HTML))).toBeNull();
-    expect(sniffPreviewableDocument("a.xlsx", new Uint8Array(PDF))).toBeNull();
-    expect(sniffPreviewableDocument("a.xls", new Uint8Array(ZIP))).toBeNull();
+    expect(sniffPreviewableDocument("a.pdf", new Uint8Array(ZIP))).toBeNull();
   });
 
   it("rejects other extensions even with matching bytes", () => {
     expect(sniffPreviewableDocument("a.docx", new Uint8Array(ZIP))).toBeNull();
+    expect(sniffPreviewableDocument("a.xlsx", new Uint8Array(ZIP))).toBeNull();
+    expect(sniffPreviewableDocument("a.xls", new Uint8Array(CFB))).toBeNull();
     expect(sniffPreviewableDocument("pdf", new Uint8Array(PDF))).toBeNull();
   });
 });
 
 describe("shouldPreviewDocument", () => {
-  it("previews PDF on phones and Excel only on iOS", () => {
+  it("previews only PDF, and only on phones", () => {
     useUserAgent(IPHONE_SAFARI);
     expect(shouldPreviewDocument("a.pdf")).toBe(true);
-    expect(shouldPreviewDocument("a.xlsx")).toBe(true);
+    expect(shouldPreviewDocument("a.xlsx")).toBe(false);
+    expect(shouldPreviewDocument("a.xls")).toBe(false);
     expect(shouldPreviewDocument("a.hwp")).toBe(false);
 
     useUserAgent(ANDROID_CHROME);
@@ -69,6 +68,12 @@ describe("shouldPreviewDocument", () => {
 
     useUserAgent(DESKTOP_CHROME);
     expect(shouldPreviewDocument("a.pdf")).toBe(false);
+  });
+
+  it("ignores extensions that only match object prototype keys", () => {
+    useUserAgent(ANDROID_CHROME);
+    expect(shouldPreviewDocument("a.constructor")).toBe(false);
+    expect(shouldPreviewDocument("a.toString")).toBe(false);
   });
 });
 
