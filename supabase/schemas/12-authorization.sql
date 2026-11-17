@@ -157,6 +157,29 @@ $$;
 
 ALTER FUNCTION "public"."get_external_identity"() OWNER TO "postgres";
 
+-- 연계 서비스용 OAuth 액세스 토큰의 DB 역할. 토큰은 사용자 본인 것이라 `authenticated`로 두면 RLS와
+-- definer RPC를 일반 세션처럼 통과한다. 이 역할은 `get_external_identity`만 부를 수 있다.
+-- 새 역할은 PUBLIC 권한을 물려받으므로, public 함수는 지금처럼 PUBLIC EXECUTE를 회수해야 한다
+-- (`oauth_token_role.test.sql`이 확인한다).
+-- 역할은 클러스터 객체라 선언형 스키마가 관리하지 않는다. 로컬은 `supabase/roles.sql`, 원격은 이 역할을
+-- 처음 만드는 migration이 만든다.
+
+-- Custom Access Token Hook(`supabase/config.toml`의 `[auth.hook.custom_access_token]`). 모든 토큰 발급에
+-- 실행되고 실패하면 로그인 전체가 막히므로, 테이블을 읽지 않고 예외를 낼 코드도 두지 않는다.
+-- `client_id`가 있는 OAuth 토큰만 역할을 바꾸고, 일반 세션은 받은 그대로 돌려준다.
+CREATE OR REPLACE FUNCTION "public"."oauth_access_token_hook"("event" "jsonb") RETURNS "jsonb"
+    LANGUAGE "sql" IMMUTABLE
+    SET "search_path" TO ''
+    AS $$
+  select case
+    when coalesce(event -> 'claims' ->> 'client_id', '') <> ''
+      then jsonb_set(event, '{claims,role}', '"oauth_member_check"')
+    else event
+  end;
+$$;
+
+ALTER FUNCTION "public"."oauth_access_token_hook"("event" "jsonb") OWNER TO "postgres";
+
 CREATE TABLE IF NOT EXISTS "public"."permissions" (
     "key" "text" NOT NULL,
     "name" "text" NOT NULL,
@@ -207,6 +230,11 @@ GRANT ALL ON FUNCTION "public"."get_my_suspension"() TO "authenticated";
 
 REVOKE ALL ON FUNCTION "public"."get_external_identity"() FROM PUBLIC, "anon";
 GRANT ALL ON FUNCTION "public"."get_external_identity"() TO "authenticated";
+GRANT USAGE ON SCHEMA "public" TO "oauth_member_check";
+GRANT EXECUTE ON FUNCTION "public"."get_external_identity"() TO "oauth_member_check";
+
+REVOKE ALL ON FUNCTION "public"."oauth_access_token_hook"("event" "jsonb") FROM PUBLIC, "anon", "authenticated", "service_role";
+GRANT EXECUTE ON FUNCTION "public"."oauth_access_token_hook"("event" "jsonb") TO "supabase_auth_admin";
 
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."permissions" TO "service_role";
 GRANT SELECT ON TABLE "public"."permissions" TO "authenticated";

@@ -125,11 +125,12 @@ Function/Vault 시크릿과 Auth URL은 릴리스 workflow가 변경하지 않�
 
 ### 5.3 원격 프로젝트를 새로 만들었을 때
 
-마이그레이션이 담지 않는 것 세 가지를 따로 채웁니다.
+마이그레이션이 담지 않는 것 네 가지를 따로 채웁니다.
 
 1. Edge Function 시크릿 — [supabase/.env.example](../supabase/.env.example) 참고
 2. Vault 시크릿 — [Remote project secrets](../supabase/README.md#remote-project-secrets)
 3. Auth URL 설정 — Dashboard
+4. OAuth 서버와 Custom Access Token Hook — Dashboard, migration을 push한 뒤에 켭니다([Remote project secrets](../supabase/README.md#remote-project-secrets))
 
 그 다음 [원격 최초 관리자 설정](../supabase/REMOTE_ADMIN_SETUP.md)을 따릅니다.
 

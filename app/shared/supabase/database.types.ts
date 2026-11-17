@@ -3212,6 +3212,7 @@ export type Database = {
         Args: { p_within_seconds?: number }
         Returns: string
       }
+      oauth_access_token_hook: { Args: { event: Json }; Returns: Json }
       open_direct_conversation: {
         Args: { p_profile_id: number }
         Returns: string
