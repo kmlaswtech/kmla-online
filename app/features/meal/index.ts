@@ -7,7 +7,6 @@ export {
 export {
   getDefaultMeal,
   getKoreaDate,
-  getKoreaWeekDates,
   getMealDay,
   getMealDayIfLoaded,
   getMealReferenceDate,

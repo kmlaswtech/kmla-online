@@ -1,12 +1,17 @@
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { cn } from "~/shared/lib/utils";
+import { Button } from "~/shared/ui/button";
 import { Spinner } from "~/shared/ui/spinner";
 import { Switch } from "~/shared/ui/switch";
 
 import {
+  addDays,
   ALLERGEN_NAMES,
   getDefaultMeal,
+  getKoreaDate,
+  getKoreaWeekDates,
   getMealDay,
   type MealDay,
   type MealMenu,
@@ -88,18 +93,23 @@ function AllergenLegend({ items }: { items: MealMenu["items"] }) {
 }
 
 interface MealScreenProps {
-  dates: string[];
+  /** 처음 고를 날짜. 날짜 줄은 이 날짜가 든 주를 기준으로 앞뒤 주를 만든다. */
   initialDate: string;
   /** loader가 기다리지 않고 넘긴 첫 날짜의 식단. 오는 동안 식단 칸만 로딩으로 둔다. */
   initialDay: MealDay | Promise<MealDay>;
 }
 
-export function MealScreen({
-  dates,
-  initialDate,
-  initialDay,
-}: MealScreenProps) {
+export function MealScreen({ initialDate, initialDay }: MealScreenProps) {
   const [selectedDate, setSelectedDate] = useState(initialDate);
+
+  // 날짜 줄은 고른 날짜가 든 주다. 화살표는 처음 연 주(저녁 7시 이후면 내일 기준)에서 앞뒤 한
+  // 주까지만 넘긴다. 날짜 문자열(YYYYMMDD)은 사전순 비교가 곧 날짜순이다.
+  const weekDates = getKoreaWeekDates(selectedDate);
+  const homeMonday = getKoreaWeekDates(initialDate)[0];
+  const canShowPrevWeek = weekDates[0] > addDays(homeMonday, -7);
+  const canShowNextWeek = weekDates[0] < addDays(homeMonday, 7);
+
+  const today = getKoreaDate();
 
   const [selectedMeal, setSelectedMeal] = useState(getDefaultMeal);
 
@@ -148,42 +158,74 @@ export function MealScreen({
     setLoadingDate((current) => (current === date ? null : current));
   };
 
+  // 주를 넘겨도 보던 요일을 그대로 고른다.
+  const moveWeek = (step: -1 | 1) =>
+    void selectDate(addDays(selectedDate, step * 7));
+
+  const weekArrow = (step: -1 | 1) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="size-10 shrink-0 rounded-full text-muted-foreground md:size-8"
+      aria-label={step < 0 ? "이전 주" : "다음 주"}
+      disabled={step < 0 ? !canShowPrevWeek : !canShowNextWeek}
+      onClick={() => moveWeek(step)}
+    >
+      {step < 0 ? (
+        <ChevronLeftIcon aria-hidden />
+      ) : (
+        <ChevronRightIcon aria-hidden />
+      )}
+    </Button>
+  );
+
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pb-10 md:px-0">
-      <div className="grid grid-cols-7">
-        {dates.map((dateValue) => {
-          const date = toDate(dateValue);
-          const selected = dateValue === selectedDate;
+      <div className="flex items-center gap-1">
+        {weekArrow(-1)}
 
-          return (
-            <button
-              key={dateValue}
-              type="button"
-              aria-label={fullDateFormatter.format(date)}
-              aria-pressed={selected}
-              onClick={() => void selectDate(dateValue)}
-              className="flex touch-manipulation flex-col items-center gap-1 rounded-xl py-1.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            >
-              <span
-                className={cn(
-                  "text-xs transition-colors",
-                  selected ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {weekdayFormatter.format(date).replace(".", "")}
-              </span>
+        <div className="grid min-w-0 flex-1 grid-cols-7">
+          {weekDates.map((dateValue) => {
+            const date = toDate(dateValue);
+            const selected = dateValue === selectedDate;
+            const isToday = dateValue === today;
 
-              <span
-                className={cn(
-                  "flex size-9 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-colors",
-                  selected && "bg-action text-action-foreground",
-                )}
+            return (
+              <button
+                key={dateValue}
+                type="button"
+                aria-label={fullDateFormatter.format(date)}
+                aria-pressed={selected}
+                aria-current={isToday ? "date" : undefined}
+                onClick={() => void selectDate(dateValue)}
+                className="flex touch-manipulation flex-col items-center gap-1 rounded-xl py-1.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                {dayNumber(dateValue)}
-              </span>
-            </button>
-          );
-        })}
+                <span
+                  className={cn(
+                    "text-xs transition-colors",
+                    selected ? "text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {weekdayFormatter.format(date).replace(".", "")}
+                </span>
+
+                <span
+                  className={cn(
+                    "flex size-9 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-colors",
+                    selected
+                      ? "bg-action text-action-foreground"
+                      : isToday && "text-action",
+                  )}
+                >
+                  {dayNumber(dateValue)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {weekArrow(1)}
       </div>
 
       <div className="mt-1 flex border-b">
