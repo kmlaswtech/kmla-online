@@ -5,6 +5,7 @@ import type {
   AuthState,
   MyApplicationRejection,
   MySuspension,
+  OAuthAuthorization,
 } from "~/features/auth/model/types";
 import type { OwnedGroup } from "~/features/auth/model/withdrawal";
 
@@ -108,4 +109,30 @@ export async function listMyOwnedGroups(): Promise<OwnedGroup[]> {
     .eq("role", "owner");
   if (error) throw error;
   return data.map(({ groups }) => groups);
+}
+
+/**
+ * 연계 서비스의 로그인 요청(OAuth 2.1 authorization). 이미 동의한 사용자에게는 인증 서버가
+ * 상세 대신 돌아갈 주소만 준다. 없거나 만료된 요청은 인증 서버가 4xx로 거절하므로 `missing`이다.
+ */
+export async function loadOAuthAuthorization(
+  authorizationId: string,
+): Promise<OAuthAuthorization> {
+  const { data, error } =
+    await getSupabase().auth.oauth.getAuthorizationDetails(authorizationId);
+  if (error) {
+    if (isAuthApiError(error) && error.status < 500) return { kind: "missing" };
+    throw error;
+  }
+  if (!("authorization_id" in data)) {
+    return { kind: "redirect", url: data.redirect_url };
+  }
+  return { kind: "consent", clientName: data.client.name };
+}
+
+/** 연계 서비스가 받는 판정과 같다(`get_external_identity`, accounts §4.8). */
+export async function isAcceptedMember(): Promise<boolean> {
+  const { data, error } = await getSupabase().rpc("get_external_identity");
+  if (error) throw error;
+  return data.length > 0;
 }

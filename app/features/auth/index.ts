@@ -11,6 +11,7 @@ export { TermsAgreementField } from "~/features/auth/components/terms-agreement-
 export {
   agreeToTerms,
   claimSignupPassword,
+  decideOAuthAuthorization,
   resendSignupOtp,
   sendPasswordChangeOtp,
   sendPasswordResetOtp,
@@ -26,10 +27,12 @@ export {
 } from "~/features/auth/data/mutations";
 export {
   hasActiveSession,
+  isAcceptedMember,
   listMyOwnedGroups,
   loadAuthState,
   loadMyApplicationRejection,
   loadMySuspension,
+  loadOAuthAuthorization,
 } from "~/features/auth/data/queries";
 export { describeSuspensionEnd } from "~/features/auth/model/suspension";
 export {
@@ -66,6 +69,7 @@ export {
 } from "~/features/auth/model/validation";
 export {
   getProfileDestination,
+  OAUTH_CONSENT_PATH,
   sanitizeLoginNext,
 } from "~/features/auth/model/navigation";
 export type {
@@ -74,6 +78,8 @@ export type {
   FieldErrors,
   MyApplicationRejection,
   MySuspension,
+  OAuthAuthorization,
+  OAuthDecision,
   ProfileFormValues,
 } from "~/features/auth/model/types";
 export type {

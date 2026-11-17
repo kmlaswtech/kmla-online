@@ -1,16 +1,22 @@
 import { AuthApiError } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSession, getSupabase, rpc, signOut } = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  getSupabase: vi.fn(),
-  rpc: vi.fn(),
-  signOut: vi.fn(),
-}));
+const { getAuthorizationDetails, getSession, getSupabase, rpc, signOut } =
+  vi.hoisted(() => ({
+    getAuthorizationDetails: vi.fn(),
+    getSession: vi.fn(),
+    getSupabase: vi.fn(),
+    rpc: vi.fn(),
+    signOut: vi.fn(),
+  }));
 
 vi.mock("~/shared/supabase/client", () => ({ getSupabase }));
 
-import { hasActiveSession, loadAuthState } from "~/features/auth/data/queries";
+import {
+  hasActiveSession,
+  loadAuthState,
+  loadOAuthAuthorization,
+} from "~/features/auth/data/queries";
 
 const SESSION = { user: { email: "student@kmla.hs.kr" } };
 
@@ -18,7 +24,7 @@ describe("auth queries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSupabase.mockReturnValue({
-      auth: { getSession, signOut },
+      auth: { getSession, signOut, oauth: { getAuthorizationDetails } },
       rpc,
     });
     getSession.mockResolvedValue({ data: { session: SESSION }, error: null });
@@ -113,5 +119,45 @@ describe("auth queries", () => {
     });
 
     await expect(hasActiveSession()).resolves.toBe(false);
+  });
+
+  it("maps an OAuth request to consent, an earlier grant, or a missing request", async () => {
+    getAuthorizationDetails.mockResolvedValueOnce({
+      data: {
+        authorization_id: "abc",
+        client: { name: "큼온 위키" },
+        redirect_uri: "https://wiki.kmla.online/auth/callback",
+      },
+      error: null,
+    });
+    await expect(loadOAuthAuthorization("abc")).resolves.toEqual({
+      kind: "consent",
+      clientName: "큼온 위키",
+    });
+
+    getAuthorizationDetails.mockResolvedValueOnce({
+      data: { redirect_url: "https://wiki.kmla.online/auth/callback?code=x" },
+      error: null,
+    });
+    await expect(loadOAuthAuthorization("abc")).resolves.toEqual({
+      kind: "redirect",
+      url: "https://wiki.kmla.online/auth/callback?code=x",
+    });
+
+    getAuthorizationDetails.mockResolvedValueOnce({
+      data: null,
+      error: new AuthApiError("authorization not found", 404, "not_found"),
+    });
+    await expect(loadOAuthAuthorization("abc")).resolves.toEqual({
+      kind: "missing",
+    });
+
+    // 서버 오류는 만료로 읽지 않는다. 다시 시도하면 될 요청을 사용자가 처음부터 하게 된다.
+    const outage = new AuthApiError("unavailable", 503, "unexpected_failure");
+    getAuthorizationDetails.mockResolvedValueOnce({
+      data: null,
+      error: outage,
+    });
+    await expect(loadOAuthAuthorization("abc")).rejects.toBe(outage);
   });
 });

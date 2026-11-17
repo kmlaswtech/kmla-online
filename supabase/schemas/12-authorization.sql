@@ -143,6 +143,20 @@ $$;
 
 ALTER FUNCTION "public"."get_my_suspension"() OWNER TO "postgres";
 
+-- 연계 서비스(현재 큼온 위키)가 OAuth 액세스 토큰으로 "승인된 KMLA Online 사용자인지"를 확인하는 안정 규약이다.
+-- 반환 형태(열 이름·타입·순서)를 바꾸면 kmla-wiki의 `kmla-verify` Edge Function도 함께 바꿔야 한다.
+-- 행의 유무가 승인 여부이고, 열은 계정을 잇는 내부 식별 번호뿐이다. 앱에서는 OAuth 동의 화면만 같은 판정으로 쓴다.
+CREATE OR REPLACE FUNCTION "public"."get_external_identity"() RETURNS TABLE("profile_id" bigint)
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+  select caller.profile_id
+  from (select private.current_profile_id() as profile_id) as caller
+  where caller.profile_id is not null;
+$$;
+
+ALTER FUNCTION "public"."get_external_identity"() OWNER TO "postgres";
+
 CREATE TABLE IF NOT EXISTS "public"."permissions" (
     "key" "text" NOT NULL,
     "name" "text" NOT NULL,
@@ -190,6 +204,9 @@ GRANT ALL ON FUNCTION "private"."current_profile_id"() TO "authenticated";
 
 REVOKE ALL ON FUNCTION "public"."get_my_suspension"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_my_suspension"() TO "authenticated";
+
+REVOKE ALL ON FUNCTION "public"."get_external_identity"() FROM PUBLIC, "anon";
+GRANT ALL ON FUNCTION "public"."get_external_identity"() TO "authenticated";
 
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."permissions" TO "service_role";
 GRANT SELECT ON TABLE "public"."permissions" TO "authenticated";

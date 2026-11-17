@@ -2347,6 +2347,12 @@ export type Database = {
           media_count: number
         }[]
       }
+      get_external_identity: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          profile_id: number
+        }[]
+      }
       get_group_invite: {
         Args: { p_group_id: string }
         Returns: {

@@ -40,6 +40,7 @@ means none does, and feature-level tests live under `test/features/<feature>/`.
 | `/blocked`                           | `app/routes/auth/blocked.tsx`               | —                              | L     | auth, support                                               | §2.2, §16.2      | `test/routes/auth.test.tsx`                                                                             |
 | `/suspended`                         | `app/routes/auth/suspended.tsx`             | —                              | L     | auth, support                                               | §5.8, §16.11     | `test/routes/suspended.test.tsx`                                                                        |
 | `/logout`                            | `app/routes/auth/logout.tsx`                | —                              | A     | auth                                                        | §4.3             | `test/features/auth/components/logout-button.test.tsx`                                                  |
+| `/oauth/consent`                     | `app/routes/auth/oauth-consent.tsx`         | —                              | L A   | auth                                                        | §4.9, §4.8       | `test/routes/oauth-consent.test.tsx`                                                                    |
 | `/noti/open/:notificationId`         | `app/routes/notification-open.tsx`          | —                              | L     | notifications                                               | §14.1            | `test/routes/notification-open.test.tsx`                                                                |
 | `/dokkaebi`                          | `app/routes/dokkaebi.tsx`                   | —                              | —     | —                                                           | none             | —                                                                                                       |
 | `/terms-of-service`                  | `app/routes/legal/terms-of-service.tsx`     | —                              | —     | auth                                                        | §4.7             | `test/routes/legal.test.tsx`                                                                            |
@@ -158,6 +159,7 @@ Every Supabase call lives in a feature's `data/`. **Called from** is relative to
 | `approve_group_join_request`                  | `groups/data/mutations.ts`                                                      | `21-groups.sql`               |
 | `cancel_group_anonymous_activity_restriction` | `posts/data/mutations.ts`                                                       | `34-content-api.sql`          |
 | `cancel_utility_reservation`                  | `school-utilities/data/reservations.ts`                                         | `51-utility-reservations.sql` |
+| `get_external_identity`                       | `auth/data/queries.ts`                                                          | `12-authorization.sql`        |
 | `get_school_notice`                           | `school-notices/data/school-notices.ts`                                         | `55-school-notices.sql`       |
 | `list_school_notices`                         | `school-notices/data/school-notices.ts`                                         | `55-school-notices.sql`       |
 | `save_gongang_schedule`                       | `school-utilities/data/gongang-schedule.ts`                                     | `51-utility-reservations.sql` |
@@ -295,6 +297,10 @@ Every Supabase call lives in a feature's `data/`. **Called from** is relative to
 | `donation_update_round`                       | `donations/data/donations.ts`                                                   | `54-donations.sql`            |
 
 <!-- rpc:end -->
+
+`get_external_identity` is also the identity contract for 연계 서비스 (accounts §4.8): the 큼온 위키
+`kmla-verify` Edge Function calls it with an OAuth access token. Change its return shape only together
+with every 연계 서비스.
 
 ## Direct table access
 

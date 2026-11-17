@@ -14,6 +14,7 @@ export default [
   route("blocked", "routes/auth/blocked.tsx"),
   route("suspended", "routes/auth/suspended.tsx"),
   route("logout", "routes/auth/logout.tsx"),
+  route("oauth/consent", "routes/auth/oauth-consent.tsx"),
   route("noti/open/:notificationId", "routes/notification-open.tsx"),
   route("dokkaebi", "routes/dokkaebi.tsx"),
   route("terms-of-service", "routes/legal/terms-of-service.tsx"),

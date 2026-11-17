@@ -286,6 +286,30 @@ describe("auth routes", () => {
     );
   });
 
+  // 연계 서비스 동의 화면은 승인 전 회원에게도 "승인 회원만 이용 가능"을 알리고 거부를 돌려줘야 한다.
+  it("returns every signed-in state except withdrawn to the OAuth consent screen", () => {
+    const consent = "/oauth/consent?authorization_id=abc";
+    expect(getProfileDestination(null, consent)).toBe(consent);
+    for (const status of ["draft", "pending", "blocked", "accepted"]) {
+      expect(getProfileDestination({ status } as AuthProfile, consent)).toBe(
+        consent,
+      );
+    }
+    expect(
+      getProfileDestination({ status: "withdrawn" } as AuthProfile, consent),
+    ).toBe("/login");
+    // 다른 경로는 여전히 승인 회원만 돌려보낸다.
+    expect(
+      getProfileDestination({ status: "pending" } as AuthProfile, "/noti"),
+    ).toBe("/pending");
+    expect(
+      getProfileDestination(
+        { status: "pending" } as AuthProfile,
+        "/oauth/consent-other",
+      ),
+    ).toBe("/pending");
+  });
+
   it("restores only safe app-relative login destinations for accepted users", () => {
     expect(sanitizeLoginNext("/noti/open/notification-id")).toBe(
       "/noti/open/notification-id",
