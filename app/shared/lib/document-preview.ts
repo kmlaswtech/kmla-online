@@ -30,8 +30,8 @@ export function sniffPreviewableDocument(
   head: Uint8Array,
 ): string | null {
   const extension = extensionOf(fileName);
-  const signature = extension ? SIGNATURES[extension] : undefined;
-  if (!signature) return null;
+  if (!extension || !Object.hasOwn(SIGNATURES, extension)) return null;
+  const signature = SIGNATURES[extension];
   return signature.magic.every((byte, index) => head[index] === byte)
     ? signature.type
     : null;
@@ -45,7 +45,8 @@ export function sniffPreviewableDocument(
  */
 export function shouldPreviewDocument(fileName: string): boolean {
   const extension = extensionOf(fileName);
-  if (!extension || !(extension in SIGNATURES)) return false;
+  // `in`은 `constructor` 같은 프로토타입 키도 참으로 본다.
+  if (!extension || !Object.hasOwn(SIGNATURES, extension)) return false;
   return isIOS() || isAndroid();
 }
 

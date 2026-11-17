@@ -69,6 +69,12 @@ describe("shouldPreviewDocument", () => {
     useUserAgent(DESKTOP_CHROME);
     expect(shouldPreviewDocument("a.pdf")).toBe(false);
   });
+
+  it("ignores extensions that only match object prototype keys", () => {
+    useUserAgent(ANDROID_CHROME);
+    expect(shouldPreviewDocument("a.constructor")).toBe(false);
+    expect(shouldPreviewDocument("a.toString")).toBe(false);
+  });
 });
 
 describe("openDocumentPreview", () => {

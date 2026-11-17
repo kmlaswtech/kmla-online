@@ -21,7 +21,8 @@ export interface DownloadTarget {
 /**
  * Storage의 MIME type은 올린 사람이 정한 값이라 믿지 않는다. 공유 받을 앱이 형식을 알도록 확장자로
  * 정하고, 모르는 형식은 `application/octet-stream`으로 둔다. Android Chrome은 그런 파일을 공유하지
- * 못하므로 `canShareFiles`가 거절한다.
+ * 못하므로 `canShareFiles`가 거절한다. 엑셀은 iOS가 미리보기 탭 대신 이 경로의 공유 시트로 저장하므로
+ * 형식을 지정해 둔다.
  */
 const TYPE_BY_EXTENSION: Record<string, string> = {
   webp: "image/webp",
