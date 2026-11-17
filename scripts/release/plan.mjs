@@ -185,6 +185,70 @@ export function isNothingToAnnounce(text) {
   return /^없음(입니다)?$/.test(bare);
 }
 
+// Interactions API `generation_config.thinking_level` 값. 모델마다 지원하는 수준은 API가 400으로 거른다.
+const THINKING_LEVELS = new Set(["minimal", "low", "medium", "high", "xhigh"]);
+
+/**
+ * `GEMINI_MODEL`은 쉼표로 나눈 모델 목록이다. 앞 모델이 계속 실패하면 다음 모델을 쓴다. 모델 뒤
+ * `:high`처럼 thinking 수준을 붙이면 고정하고, 없으면 모델 기본값을 쓴다.
+ */
+export function noticeModels(value) {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const colon = entry.indexOf(":");
+      if (colon === -1) return { model: entry, thinking: null };
+      const thinking = entry
+        .slice(colon + 1)
+        .trim()
+        .toLowerCase();
+      if (!THINKING_LEVELS.has(thinking)) {
+        throw new Error(`GEMINI_MODEL has an unknown thinking level: ${entry}`);
+      }
+      const model = entry.slice(0, colon).trim();
+      if (!model) throw new Error(`GEMINI_MODEL has no model in: ${entry}`);
+      return { model, thinking };
+    });
+}
+
+const NOTICE_ATTEMPTS = 3;
+
+/**
+ * 모델 호출이 실패한 뒤 할 일. `attempt`는 방금 실패한 시도 번호(1부터)다. 503 과부하 같은 일시
+ * 오류는 같은 모델로 기다렸다 다시 시도하고, 시도를 다 쓰면 다음 모델로 넘어간다.
+ */
+export function noticeRetry({ status, body, attempt }) {
+  const backoff =
+    attempt >= NOTICE_ATTEMPTS
+      ? { next: true }
+      : { retry: 15 * 2 ** (attempt - 1) };
+  // 408은 요청 시간 초과 응답이라 503 과부하처럼 다시 시도한다.
+  if (status >= 500 || status === 408) return backoff;
+  // 할당량 소진은 기다려도 풀리지 않지만 무료 할당량은 모델마다 따로라 다음 모델은 아직 쓸 수
+  // 있다. 오류 문서는 code를 snake_case로, API 레퍼런스는 URI로 적어 끝부분으로 비교하고, 그 밖의
+  // 429는 분당 한도로 보고 503처럼 다시 시도한다. 소진을 잘못 읽어도 45초 기다리고 넘어갈 뿐이다.
+  if (status === 429) {
+    return /(^|\/)quota_exceeded$/.test(errorCode(body) ?? "")
+      ? { next: true }
+      : backoff;
+  }
+  // 지원이 끝났거나 잘못 적은 모델. 요청·키 오류(400·401·403)는 모델을 바꿔도 같다.
+  if (status === 404) return { next: true };
+  return { fail: true };
+}
+
+/** Interactions API 오류 본문의 `error.code`. 없거나 JSON이 아니면 `null`. */
+export function errorCode(body) {
+  try {
+    const code = JSON.parse(body).error?.code;
+    return typeof code === "string" ? code : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * `notice` job 출력을 체크리스트의 공지 초안 결과로 바꾼다. 초안이 비교한 직전 릴리즈(`base`)가
  * `publish`의 것과 다르면 다른 범위의 변경을 담은 초안이라 쓰지 않는다. 앞 릴리즈의 태그가 생기기

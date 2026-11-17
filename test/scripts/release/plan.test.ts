@@ -42,6 +42,8 @@ const {
   noticeInput,
   isNothingToAnnounce,
   noticeFrom,
+  noticeModels,
+  noticeRetry,
 } = plan as {
   impacts: (files: string[]) => string[];
   releaseSection: (body: string | null) => {
@@ -73,6 +75,12 @@ const {
     output: { status?: string; text?: string; base?: string },
     expected: { base: string | null; logUrl: string | null },
   ) => { status: string; text?: string; logUrl?: string | null };
+  noticeModels: (value: string) => { model: string; thinking: string | null }[];
+  noticeRetry: (response: {
+    status: number;
+    body: string;
+    attempt: number;
+  }) => { retry: number } | { next: true } | { fail: true };
 };
 
 function pr(number: number, overrides: Partial<Pr> = {}): Pr {
@@ -359,6 +367,98 @@ describe("isNothingToAnnounce", () => {
     expect(
       isNothingToAnnounce("‘없음’ 표시가 사라지던 문제를 수정했습니다."),
     ).toBe(false);
+  });
+});
+
+describe("noticeModels", () => {
+  it("reads a comma-separated fallback list in order", () => {
+    expect(noticeModels(" gemini-a, gemini-b,,")).toEqual([
+      { model: "gemini-a", thinking: null },
+      { model: "gemini-b", thinking: null },
+    ]);
+    expect(noticeModels("gemini-a")).toEqual([
+      { model: "gemini-a", thinking: null },
+    ]);
+  });
+
+  it("reads each model's thinking level after a colon", () => {
+    expect(noticeModels("gemini-a:HIGH, gemini-b : low,gemini-c")).toEqual([
+      { model: "gemini-a", thinking: "high" },
+      { model: "gemini-b", thinking: "low" },
+      { model: "gemini-c", thinking: null },
+    ]);
+  });
+
+  it("rejects a thinking level the API does not define", () => {
+    expect(() => noticeModels("gemini-a:max")).toThrow("gemini-a:max");
+    expect(() => noticeModels("gemini-a:")).toThrow("gemini-a:");
+    expect(() => noticeModels("gemini-a:1024")).toThrow("gemini-a:1024");
+  });
+
+  it("rejects an entry without a model name", () => {
+    expect(() => noticeModels(":high,gemini-b")).toThrow(":high");
+  });
+});
+
+describe("noticeRetry", () => {
+  it("backs off on a transient server error, then moves to the next model", () => {
+    const overloaded = { status: 503, body: "" };
+    expect(noticeRetry({ ...overloaded, attempt: 1 })).toEqual({ retry: 15 });
+    expect(noticeRetry({ ...overloaded, attempt: 2 })).toEqual({ retry: 30 });
+    expect(noticeRetry({ ...overloaded, attempt: 3 })).toEqual({ next: true });
+  });
+
+  it("retries a request timeout reply like a server error", () => {
+    expect(noticeRetry({ status: 408, body: "", attempt: 1 })).toEqual({
+      retry: 15,
+    });
+  });
+
+  it("backs off on a rate limit but moves on from an exhausted quota", () => {
+    const tooMany = (code?: string | number) =>
+      JSON.stringify({
+        error: { ...(code && { code }), message: "slow down" },
+      });
+    // 문서마다 code 형식이 달라(snake_case·URI) 소진만 골라내고 나머지는 분당 한도로 본다.
+    for (const body of [
+      tooMany("rate_limit_exceeded"),
+      tooMany("too_many_requests"),
+      tooMany(),
+      tooMany(429),
+      tooMany("https://example.com/errors/rate_limit_exceeded"),
+      "not json",
+    ]) {
+      expect(noticeRetry({ status: 429, body, attempt: 1 }), body).toEqual({
+        retry: 15,
+      });
+      expect(noticeRetry({ status: 429, body, attempt: 2 }), body).toEqual({
+        retry: 30,
+      });
+      expect(noticeRetry({ status: 429, body, attempt: 3 }), body).toEqual({
+        next: true,
+      });
+    }
+    for (const code of [
+      "quota_exceeded",
+      "https://example.com/errors/quota_exceeded",
+    ]) {
+      expect(
+        noticeRetry({ status: 429, body: tooMany(code), attempt: 1 }),
+        code,
+      ).toEqual({ next: true });
+    }
+  });
+
+  it("moves past a retired model but stops on a request or key error", () => {
+    expect(noticeRetry({ status: 404, body: "", attempt: 1 })).toEqual({
+      next: true,
+    });
+    for (const status of [400, 401, 403]) {
+      expect(
+        noticeRetry({ status, body: "", attempt: 1 }),
+        `${status}`,
+      ).toEqual({ fail: true });
+    }
   });
 });
 

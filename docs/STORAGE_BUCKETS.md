@@ -160,7 +160,7 @@ Bucket 제한은 object 하나에 적용되는 최종 방어선이다. 버킷의
 - 메시지 안에서 재생할 수 있는 오디오는 MP3, M4A, OGG, WAV 및 WebM이다.
 - 정규화된 WebP 이미지, 위 오디오 allowlist, §6.5의 동영상·GIF만 앱 안에서 표시하거나 재생한다.
 - 그 밖의 모든 파일은 MIME type과 확장자를 신뢰하지 않고 미리보기 없이 다운로드로만 제공한다.
-- 예외로 휴대폰·태블릿은 PDF와 iOS의 엑셀을 새 탭에서 연다. signed URL을 inline으로 열지 않고, 내려받아 앞부분 바이트가 확장자와 맞을 때만 통제된 MIME type의 Blob으로 연다. 맞지 않으면 다운로드한다(`app/shared/lib/document-preview.ts`).
+- 예외로 휴대폰·태블릿은 PDF를 새 탭에서 연다. signed URL을 inline으로 열지 않고, 내려받아 앞부분 바이트가 확장자와 맞을 때만 통제된 MIME type의 Blob으로 연다. 맞지 않으면 다운로드한다(`app/shared/lib/document-preview.ts`).
 - 휴대폰·태블릿의 앱 내 다운로드는 받은 바이트를 화면에 그리지 않고 공유 시트나 다운로드 폴더로만 넘긴다. 넘기는 파일의 MIME type은 Storage 값이 아니라 확장자로 정하고, 모르는 확장자는 `application/octet-stream`으로 둔다(`app/shared/lib/file-download.ts`).
 - 메시지 오디오는 내려받은 뒤 magic bytes가 허용 형식과 일치하는지 클라이언트에서 확인한 뒤 통제된 MIME type의 Blob으로 만들어 재생한다.
 

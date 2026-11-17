@@ -92,8 +92,15 @@ describe("fetchFiles", () => {
   });
 
   it("falls back to a generic type for unknown extensions", () => {
-    expect(fileTypeFor("명단.xlsx")).toBe("application/octet-stream");
+    expect(fileTypeFor("가정통신문.hwp")).toBe("application/octet-stream");
     expect(fileTypeFor("사진.WEBP")).toBe("image/webp");
+  });
+
+  it("types spreadsheets so the iOS share sheet accepts them", () => {
+    expect(fileTypeFor("명단.xlsx")).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(fileTypeFor("예전.XLS")).toBe("application/vnd.ms-excel");
   });
 
   it("rejects a failed response", async () => {

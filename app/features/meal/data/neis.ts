@@ -167,16 +167,18 @@ function formatUtcDate(date: Date) {
   ].join("");
 }
 
+/** `YYYYMMDD` 날짜에서 며칠 앞뒤로 옮긴 날짜. 월·연도 경계를 넘어도 맞는다. */
+export function addDays(date: string, days: number) {
+  const next = toUtcDate(date);
+  next.setUTCDate(next.getUTCDate() + days);
+
+  return formatUtcDate(next);
+}
+
 export function getMealReferenceDate(now = new Date()) {
   const today = getKoreaDate(now);
-  const hour = getKoreaHour(now);
 
-  if (hour < 19) return today;
-
-  const tomorrow = toUtcDate(today);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-
-  return formatUtcDate(tomorrow);
+  return getKoreaHour(now) < 19 ? today : addDays(today, 1);
 }
 
 export function getDefaultMeal(now = new Date()) {
@@ -189,18 +191,10 @@ export function getDefaultMeal(now = new Date()) {
 }
 
 export function getKoreaWeekDates(referenceDate = getMealReferenceDate()) {
-  const date = toUtcDate(referenceDate);
-  const weekday = date.getUTCDay();
-  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  const weekday = toUtcDate(referenceDate).getUTCDay();
+  const monday = addDays(referenceDate, weekday === 0 ? -6 : 1 - weekday);
 
-  date.setUTCDate(date.getUTCDate() + mondayOffset);
-
-  return Array.from({ length: 7 }, (_, offset) => {
-    const next = new Date(date);
-    next.setUTCDate(next.getUTCDate() + offset);
-
-    return formatUtcDate(next);
-  });
+  return Array.from({ length: 7 }, (_, offset) => addDays(monday, offset));
 }
 
 /** 이미 받아 둔 식단이면 바로 돌려준다. 없으면 `getMealDay`로 받는다. */

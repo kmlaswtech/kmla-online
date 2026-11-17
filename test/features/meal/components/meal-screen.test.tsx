@@ -1,9 +1,13 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MealScreen } from "~/features/meal/components/meal-screen";
-import { getDefaultMeal, type MealDay } from "~/features/meal/data/neis";
+import {
+  getDefaultMeal,
+  getKoreaDate,
+  type MealDay,
+} from "~/features/meal/data/neis";
 import { renderRoute } from "../../../router";
 
 const LEGEND = { name: "알레르기 유발 식품" };
@@ -37,7 +41,7 @@ function dish(name: string) {
 
 function renderMeal(day: MealDay) {
   return renderRoute(() => (
-    <MealScreen dates={[day.date]} initialDate={day.date} initialDay={day} />
+    <MealScreen initialDate={day.date} initialDay={day} />
   ));
 }
 
@@ -49,6 +53,7 @@ const STEW_DAY = dayWith([
 
 afterEach(() => {
   window.localStorage.clear();
+  vi.unstubAllGlobals();
 });
 
 describe("MealScreen allergens", () => {
@@ -96,5 +101,87 @@ describe("MealScreen allergens", () => {
     await userEvent.click(screen.getByRole("switch", TOGGLE));
 
     expect(screen.queryByRole("list", LEGEND)).not.toBeInTheDocument();
+  });
+});
+
+describe("MealScreen weeks", () => {
+  /** NEIS가 날짜마다 그 날짜 이름의 메뉴 하나를 돌려주는 것처럼 꾸민다. */
+  function stubNeis() {
+    const fetchMock = vi.fn((url: string) => {
+      const date = new URL(url).searchParams.get("MLSV_YMD") ?? "";
+      return Promise.resolve(
+        Response.json({
+          mealServiceDietInfo: [
+            { head: [] },
+            {
+              row: [
+                {
+                  MMEAL_SC_CODE: "1",
+                  MLSV_YMD: date,
+                  DDISH_NM: `${date} 메뉴`,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function renderWeek(initialDate: string) {
+    const day: MealDay = { date: initialDate, unavailable: false, meals: [] };
+    return renderRoute(() => (
+      <MealScreen initialDate={initialDate} initialDay={day} />
+    ));
+  }
+
+  const pressed = (name: string) =>
+    expect(screen.getByRole("button", { name })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+  it("moves one week back and one week forward, keeping the weekday", async () => {
+    const fetchMock = stubNeis();
+    const { user } = renderWeek("20261118");
+    pressed("11월 18일 수요일");
+
+    await user.click(screen.getByRole("button", { name: "이전 주" }));
+    pressed("11월 11일 수요일");
+    expect(
+      screen.queryByRole("button", { name: "11월 18일 수요일" }),
+    ).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("MLSV_YMD=20261111"),
+    );
+    // 지난주까지만 볼 수 있다.
+    expect(screen.getByRole("button", { name: "이전 주" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "다음 주" }));
+    await user.click(screen.getByRole("button", { name: "다음 주" }));
+    pressed("11월 25일 수요일");
+    // 다음 주까지만 볼 수 있다.
+    expect(screen.getByRole("button", { name: "다음 주" })).toBeDisabled();
+  });
+
+  it("marks today in the date strip", () => {
+    stubNeis();
+    const today = getKoreaDate();
+    renderWeek(today);
+
+    expect(screen.getByRole("button", { current: "date" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("crosses a month boundary", async () => {
+    stubNeis();
+    const { user } = renderWeek("20261202");
+
+    await user.click(screen.getByRole("button", { name: "이전 주" }));
+    pressed("11월 25일 수요일");
   });
 });
