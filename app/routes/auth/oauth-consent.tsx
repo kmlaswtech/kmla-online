@@ -55,20 +55,42 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
   const intent = (await request.formData()).get("intent");
   // 다른 계정으로 동의하려면 로그아웃한 뒤 같은 요청으로 돌아온다.
   if (intent === "switch-account") {
-    await signOut();
+    try {
+      await signOut();
+    } catch {
+      return data(
+        {
+          error: "로그아웃하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.",
+        },
+        { status: 503 },
+      );
+    }
     throw redirect(loginUrl(new URL(request.url)));
   }
   if (!authorizationId || (intent !== "approve" && intent !== "deny")) {
     return data({ error: "요청을 처리하지 못했어요." }, { status: 400 });
   }
 
-  try {
-    if (intent === "approve" && !(await isAcceptedMember())) {
+  // 판정 RPC가 잠깐 실패한 것을 만료로 안내하면 멀쩡한 요청을 버리고 처음부터 하게 된다.
+  if (intent === "approve") {
+    let accepted: boolean;
+    try {
+      accepted = await isAcceptedMember();
+    } catch {
+      return data(
+        { error: "회원 여부를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요." },
+        { status: 503 },
+      );
+    }
+    if (!accepted) {
       return data(
         { error: "승인된 KMLA Online 회원만 허용할 수 있어요." },
         { status: 403 },
       );
     }
+  }
+
+  try {
     const redirectUrl = await decideOAuthAuthorization(
       authorizationId,
       intent satisfies OAuthDecision,

@@ -197,6 +197,19 @@ describe("OAuth consent route", () => {
     });
   });
 
+  it("keeps the request when signing out or the member check fails", async () => {
+    mocks.signOut.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(act("switch-account")).resolves.toMatchObject({
+      data: { error: expect.stringMatching(/로그아웃하지 못했어요/) },
+    });
+
+    mocks.isAcceptedMember.mockRejectedValueOnce(new Error("unavailable"));
+    await expect(act("approve")).resolves.toMatchObject({
+      data: { error: expect.stringMatching(/다시 시도해 주세요/) },
+    });
+    expect(mocks.decideOAuthAuthorization).not.toHaveBeenCalled();
+  });
+
   it("explains a missing or expired request", async () => {
     await expect(load("https://kmla.online/oauth/consent")).resolves.toEqual({
       kind: "missing",

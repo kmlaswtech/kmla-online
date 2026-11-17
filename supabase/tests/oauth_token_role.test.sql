@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 -- 연계 서비스 OAuth 액세스 토큰은 사용자 본인 토큰이다. Custom Access Token Hook이 역할을
 -- `oauth_member_check`로 바꿔 `get_external_identity`만 부를 수 있게 한다(accounts §4.8).
@@ -35,6 +35,17 @@ select is(
 select ok(
   has_function_privilege('supabase_auth_admin', 'public.oauth_access_token_hook(jsonb)', 'EXECUTE'),
   'Supabase Auth can run the hook'
+);
+-- PUBLIC에서 물려받는 USAGE는 원격에서 거둘 수 있으므로 직접 준 권한인지 본다.
+select ok(
+  exists (
+    select 1
+    from pg_namespace as n, aclexplode(n.nspacl) as acl
+    where n.nspname = 'public'
+      and acl.grantee = 'supabase_auth_admin'::regrole
+      and acl.privilege_type = 'USAGE'
+  ),
+  'Supabase Auth has its own USAGE on public to resolve the hook'
 );
 select ok(
   not has_function_privilege('anon', 'public.oauth_access_token_hook(jsonb)', 'EXECUTE')

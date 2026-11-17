@@ -152,15 +152,26 @@ describe("auth queries", () => {
       kind: "missing",
     });
 
-    for (const status of [401, 403]) {
-      getAuthorizationDetails.mockResolvedValueOnce({
-        data: null,
-        error: new AuthApiError("invalid JWT", status, "bad_jwt"),
-      });
-      await expect(loadOAuthAuthorization("abc")).resolves.toEqual({
-        kind: "signed-out",
-      });
-    }
+    // 남은 세션을 지우지 않으면 로그인 화면이 동의 화면으로 되돌려 보낸다.
+    getAuthorizationDetails.mockResolvedValueOnce({
+      data: null,
+      error: new AuthApiError("invalid JWT", 401, "bad_jwt"),
+    });
+    await expect(loadOAuthAuthorization("abc")).resolves.toEqual({
+      kind: "signed-out",
+    });
+    expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+
+    // 다른 계정에 묶인 요청은 다시 로그인해도 풀리지 않는다.
+    signOut.mockClear();
+    getAuthorizationDetails.mockResolvedValueOnce({
+      data: null,
+      error: new AuthApiError("forbidden", 403, "forbidden"),
+    });
+    await expect(loadOAuthAuthorization("abc")).resolves.toEqual({
+      kind: "missing",
+    });
+    expect(signOut).not.toHaveBeenCalled();
 
     const limited = new AuthApiError(
       "rate limited",

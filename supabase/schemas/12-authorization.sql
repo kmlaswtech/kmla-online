@@ -235,6 +235,9 @@ GRANT EXECUTE ON FUNCTION "public"."get_external_identity"() TO "oauth_member_ch
 
 REVOKE ALL ON FUNCTION "public"."oauth_access_token_hook"("event" "jsonb") FROM PUBLIC, "anon", "authenticated", "service_role";
 GRANT EXECUTE ON FUNCTION "public"."oauth_access_token_hook"("event" "jsonb") TO "supabase_auth_admin";
+-- Auth가 훅을 찾으려면 스키마 USAGE가 필요하다. 지금은 PUBLIC에서 물려받지만, 원격에서 PUBLIC을 거두면
+-- 훅을 켠 순간 모든 로그인이 실패하므로 직접 준다.
+GRANT USAGE ON SCHEMA "public" TO "supabase_auth_admin";
 
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."permissions" TO "service_role";
 GRANT SELECT ON TABLE "public"."permissions" TO "authenticated";
