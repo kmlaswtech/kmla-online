@@ -138,13 +138,17 @@ describe("OAuth consent route", () => {
     expect(
       await screen.findByRole("heading", { name: /큼온 위키/ }),
     ).toBeVisible();
-    expect(screen.getByText(/회원 여부와 내부 식별 번호/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "허용" })).toHaveValue("approve");
-    expect(screen.getByRole("button", { name: "거부" })).toHaveValue("deny");
-    expect(screen.getByText("student@kmla.hs.kr")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "다른 계정으로 로그인" }),
-    ).toHaveValue("switch-account");
+      screen.getByText(/가입 승인 여부와 계정 연결에 쓰는 프로필 번호/),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "동의하고 로그인" })).toHaveValue(
+      "approve",
+    );
+    expect(screen.getByRole("button", { name: "취소" })).toHaveValue("deny");
+    expect(screen.getByText("student@kmla.hs.kr")).toBeVisible();
+    expect(screen.getByRole("button", { name: "계정 변경" })).toHaveValue(
+      "switch-account",
+    );
   });
 
   it("signs out and returns to the same request to switch accounts", async () => {
@@ -169,14 +173,14 @@ describe("OAuth consent route", () => {
 
     expect(await screen.findByText(/승인된 KMLA Online 회원만/)).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "허용" }),
+      screen.queryByRole("button", { name: "동의하고 로그인" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "거부" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "취소" })).toBeVisible();
   });
 
   it.each([
-    ["approve", "허용"],
-    ["deny", "거부"],
+    ["approve", "동의하고 로그인"],
+    ["deny", "취소"],
   ])("sends the %s decision and returns to the service", async (intent) => {
     const response = await thrownResponse(() => act(intent));
 
@@ -223,7 +227,7 @@ describe("OAuth consent route", () => {
       loader: () => ({ kind: "missing" }),
     });
     expect(
-      await screen.findByText(/연계 서비스에서 다시 로그인/),
+      await screen.findByText(/로그인을 시작한 서비스에서 다시 시도/),
     ).toBeVisible();
   });
 });
