@@ -84,7 +84,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
     }
     if (!accepted) {
       return data(
-        { error: "승인된 KMLA Online 회원만 허용할 수 있어요." },
+        { error: "승인된 KMLA Online 회원만 로그인할 수 있어요." },
         { status: 403 },
       );
     }
@@ -101,7 +101,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
     return data(
       {
         error:
-          "요청이 만료되었거나 처리하지 못했어요. 연계 서비스에서 다시 로그인해 주세요.",
+          "로그인 요청을 처리하지 못했어요. 로그인을 시작한 서비스에서 다시 시도해 주세요.",
       },
       { status: 400 },
     );
@@ -120,7 +120,7 @@ export default function OAuthConsentPage({
     return (
       <AuthCard
         title="로그인 요청을 찾을 수 없어요"
-        description="요청이 만료되었거나 잘못된 주소예요. 연계 서비스에서 다시 로그인해 주세요."
+        description="로그인을 시작한 서비스에서 다시 시도해 주세요."
       />
     );
   }
@@ -128,10 +128,7 @@ export default function OAuthConsentPage({
   const { clientName, accepted, email } = loaderData;
 
   return (
-    <AuthCard
-      title={`${clientName} 로그인`}
-      description={`${clientName}에서 KMLA Online 계정으로 로그인하려고 해요.`}
-    >
+    <AuthCard title={`${clientName} 로그인`}>
       {/* 동의 폼의 기본 버튼(첫 submit)이 계정 전환이 되지 않도록 폼을 나눈다. */}
       <Form
         method="post"
@@ -153,7 +150,7 @@ export default function OAuthConsentPage({
           {submittedIntent === "switch-account" ? (
             <Spinner data-icon="inline-start" />
           ) : null}
-          다른 계정으로 로그인
+          계정 변경
         </Button>
       </Form>
       <Form method="post" className="flex flex-col gap-6">
@@ -173,12 +170,12 @@ export default function OAuthConsentPage({
           </div>
           {accepted ? (
             <p className="text-sm leading-6">
-              허용하면 {clientName}에 회원 여부와 내부 식별 번호만 전달돼요.
+              KMLA Online 계정으로 로그인하면 {clientName}에 가입 승인 여부와
+              계정 연결에 쓰는 프로필 번호만 전달돼요.
             </p>
           ) : (
             <p className="text-sm leading-6">
-              승인된 KMLA Online 회원만 이용할 수 있어요. 가입 승인이 끝난 뒤
-              다시 시도해 주세요.
+              승인된 KMLA Online 회원만 로그인할 수 있어요.
             </p>
           )}
         </div>
@@ -194,7 +191,7 @@ export default function OAuthConsentPage({
               {submittedIntent === "approve" ? (
                 <Spinner data-icon="inline-start" />
               ) : null}
-              허용
+              동의하고 로그인
             </Button>
           ) : null}
           <Button
@@ -207,7 +204,7 @@ export default function OAuthConsentPage({
             {submittedIntent === "deny" ? (
               <Spinner data-icon="inline-start" />
             ) : null}
-            거부
+            취소
           </Button>
         </div>
       </Form>
