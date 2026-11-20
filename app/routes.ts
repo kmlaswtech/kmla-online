@@ -42,6 +42,7 @@ export default [
       route("settings", "routes/app/menu/settings.tsx"),
       route("settings/lab", "routes/app/menu/settings-lab.tsx"),
       route("menu/timetable", "routes/app/menu/timetable.tsx"),
+      route("pokes", "routes/app/pokes.tsx"),
       route("support", "routes/app/support.tsx"),
       route("groups", "routes/app/groups/index.tsx"),
       route("groups/discover", "routes/app/groups/discover.tsx"),

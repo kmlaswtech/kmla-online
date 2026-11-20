@@ -43,6 +43,7 @@ export async function updateNotificationPreferences(
       p_content_push_enabled: preferences.content_push_enabled,
       p_group_push_enabled: preferences.group_push_enabled,
       p_school_push_enabled: preferences.school_push_enabled,
+      p_poke_push_enabled: preferences.poke_push_enabled,
       p_timeline_push_enabled: preferences.timeline_push_enabled,
     },
   );

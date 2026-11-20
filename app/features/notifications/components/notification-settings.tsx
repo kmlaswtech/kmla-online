@@ -5,6 +5,7 @@ import {
   EyeOffIcon,
   MessageCircleIcon,
   PenLineIcon,
+  PointerIcon,
   ShieldCheckIcon,
   SmartphoneIcon,
   UsersIcon,
@@ -68,6 +69,12 @@ const PREFERENCE_ROWS = [
     CalendarClockIcon,
     "학교 기능",
     "공강 예약 등 학교 부가 기능 소식",
+  ],
+  [
+    "poke_push_enabled",
+    PointerIcon,
+    "콕 찌르기",
+    "다른 회원이 나를 콕 찔렀을 때",
   ],
 ] as const satisfies readonly (readonly [
   keyof NotificationPreferences,
@@ -552,6 +559,7 @@ export function NotificationSettings({
           fetcher.formData.get("school_push_enabled") === "true",
         timeline_push_enabled:
           fetcher.formData.get("timeline_push_enabled") === "true",
+        poke_push_enabled: fetcher.formData.get("poke_push_enabled") === "true",
         message_preview_hidden: initialPreferences.message_preview_hidden,
       }
     : initialPreferences;

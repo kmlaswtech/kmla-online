@@ -1,0 +1,89 @@
+// 배럴(`~/features/profiles`)은 화면 컴포넌트를 전부 끌고 온다. 서명 헬퍼와 기수 표기만 필요하다.
+import { createProfileMediaUrls } from "~/features/profiles/data/media";
+import { formatCohort } from "~/features/profiles/model/format";
+import type {
+  PokePerson,
+  PokeState,
+  PokeTarget,
+  ReceivedPoke,
+} from "~/features/pokes/model/types";
+import { getSupabase } from "~/shared/supabase/client";
+
+interface PersonRow {
+  profile_id: number;
+  pub_id: string;
+  name: string;
+  avatar_path: string | null;
+  cohort: number | null;
+  is_returning_student: boolean;
+}
+
+/** 생성 타입은 RPC 열을 모두 non-null로 적지만 아바타와 기수는 실제로 비어 온다. */
+async function toPeople<Row extends PersonRow>(
+  rows: Row[],
+): Promise<(Row & PokePerson)[]> {
+  const avatarUrls = await createProfileMediaUrls(
+    rows.map((row) => row.avatar_path),
+  );
+  return rows.map((row) => ({
+    ...row,
+    profileId: row.profile_id,
+    pubId: row.pub_id,
+    name: row.name,
+    avatarUrl: row.avatar_path
+      ? (avatarUrls.get(row.avatar_path) ?? null)
+      : null,
+    cohortLabel: formatCohort(row.cohort, row.is_returning_student),
+  }));
+}
+
+function pickPerson(person: PokePerson): PokePerson {
+  return {
+    profileId: person.profileId,
+    pubId: person.pubId,
+    name: person.name,
+    avatarUrl: person.avatarUrl,
+    cohortLabel: person.cohortLabel,
+  };
+}
+
+export async function listMyPokes(): Promise<ReceivedPoke[]> {
+  const { data, error } = await getSupabase().rpc("list_my_pokes");
+  if (error) throw error;
+  const people = await toPeople(data);
+  return people.map((row) => ({
+    ...pickPerson(row),
+    pokedAt: row.poked_at,
+    pokeCount: row.poke_count,
+    strongCount: row.strong_count,
+    lastStrong: row.last_strong,
+    strongEffectPending: row.strong_effect_pending,
+  }));
+}
+
+export async function listPokeSuggestions(): Promise<PokePerson[]> {
+  const { data, error } = await getSupabase().rpc("list_poke_suggestions");
+  if (error) throw error;
+  return (await toPeople(data)).map(pickPerson);
+}
+
+export async function searchPokeTargets(query: string): Promise<PokeTarget[]> {
+  const { data, error } = await getSupabase().rpc("search_poke_targets", {
+    p_query: query,
+  });
+  if (error) throw error;
+  const people = await toPeople(data);
+  return people.map((row) => ({ ...pickPerson(row), waiting: row.waiting }));
+}
+
+export async function getPokeState(profileId: number): Promise<PokeState> {
+  const { data, error } = await getSupabase().rpc("get_poke_state", {
+    p_profile_id: profileId,
+  });
+  if (error) throw error;
+  const state = data[0];
+  return {
+    waiting: state?.waiting ?? false,
+    pokeCount: state?.poke_count ?? 0,
+  };
+}

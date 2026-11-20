@@ -543,6 +543,8 @@ begin
   delete from public.group_join_requests where profile_id = caller.id;
   delete from private.group_invites where created_by = caller.id;
   delete from public.user_timetables where profile_id = caller.id;
+  delete from private.poke_pairs
+  where low_profile_id = caller.id or high_profile_id = caller.id;
   delete from public.notification_preferences where profile_id = caller.id;
   delete from private.web_push_subscriptions where profile_id = caller.id;
   delete from private.notification_delivery_outbox where recipient_profile_id = caller.id;

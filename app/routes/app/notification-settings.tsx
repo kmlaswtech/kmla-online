@@ -90,6 +90,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
       "group_push_enabled",
       "school_push_enabled",
       "timeline_push_enabled",
+      "poke_push_enabled",
     ].map((key) => [key, formData.get(key) === "true"]),
   ) as unknown as NotificationPreferences;
   try {

@@ -383,6 +383,52 @@ describe("public push service worker", () => {
     expect(worker.openWindow).toHaveBeenCalledWith("/noti");
   });
 
+  it("replaces a poke card with the latest poke without counting and opens it", async () => {
+    const pokeTag =
+      "notification-category:poke:018f3f16-40c7-7d25-b2c3-abcdef012345";
+    const worker = loadPushWorker();
+    const poke = {
+      ...validPayload,
+      category: "poke",
+      tag: pokeTag,
+      title: "콕 찌르기",
+      body: "김철수님이 회원님을 콕 찔렀습니다.",
+    };
+    await worker.dispatch("push", { data: { json: () => poke } });
+    await worker.dispatch("push", {
+      data: {
+        json: () => ({
+          ...poke,
+          deliveryId: "028f3f15-40c7-7d25-b2c3-abcdef012345",
+          body: "박영희님 외 1명이 회원님을 푹 찔렀습니다.",
+        }),
+      },
+    });
+
+    expect(worker.notifications).toHaveLength(1);
+    expect(worker.showNotification).toHaveBeenLastCalledWith(
+      "콕 찌르기",
+      expect.objectContaining({
+        body: "박영희님 외 1명이 회원님을 푹 찔렀습니다.",
+        renotify: true,
+        tag: pokeTag,
+        data: {
+          notificationId: poke.notificationId,
+          deliveryIds: ["028f3f15-40c7-7d25-b2c3-abcdef012345"],
+          count: 1,
+        },
+        navigate: `https://kmla.example/noti/open/${poke.notificationId}`,
+      }),
+    );
+
+    await worker.dispatch("notificationclick", {
+      notification: { close: vi.fn(), data: worker.notifications[0]?.data },
+    });
+    expect(worker.openWindow).toHaveBeenCalledWith(
+      `/noti/open/${poke.notificationId}`,
+    );
+  });
+
   it("does not increment a category card for an out-of-order repeated delivery", async () => {
     const worker = loadPushWorker();
     await worker.dispatch("push", { data: { json: () => validPayload } });

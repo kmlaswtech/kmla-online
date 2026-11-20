@@ -133,6 +133,15 @@ Supabase 조회 캐시와 무효화 규칙을 정한다. 데이터와 권한의 
   연결이 끊긴 동안을 메우기 위해서다. 알림함은 열 때마다 새로 읽으므로 따로 무효화하지 않는다.
 - Web Push 구독 정보는 캐시하지 않는다. 권한 안내를 처리했는지만 `localStorage`에 둔다(§7).
 
+### 콕 찌르기
+
+- 프로필 버튼 상태는 `["pokes", "state", profileId]`, 화면 검색은 `["pokes", "search", query]`가 소유한다.
+  프로필 버튼은 찌른 뒤 서버 결과로 그 상태를 바로 바꾸고(캐시 병합), 콕 찌르기 화면의 찌르기는 `["pokes"]` 전체를
+  무효화한다.
+- `/pokes`의 받은 목록과 추천은 route loader가 매번 읽고, 찌르기는 `clientAction` 뒤 재검증으로 고친다.
+  화면을 연 채로 찔리면 콕 찌르기 알림의 Realtime 신호로 route를 재검증한다. 받은 콕 찌르기를 따로 구독하지 않는다.
+- 화면이 뜰 때 `mark_my_pokes_seen`이 콕 찌르기 알림을 읽음 처리하면 셸 뱃지를 무효화한다.
+
 ## 5. 라우터와의 역할 분리
 
 - React Router는 URL, redirect, route error, action 이후 재검증을 맡는다.

@@ -104,7 +104,8 @@ export function NotificationSync({ profileId }: { profileId: number }) {
   const sync = useEffectEvent((source: "notification" | "focus") => {
     void queryClient.invalidateQueries({ queryKey: notificationKeys.badge() });
 
-    if (location.pathname === "/noti") {
+    // 콕 찌르기 화면의 받은 목록은 따로 구독하지 않는다. 찔리면 콕 찌르기 알림이 바뀌므로 그 신호로 다시 읽는다.
+    if (location.pathname === "/noti" || location.pathname === "/pokes") {
       void revalidator.revalidate();
       return;
     }
