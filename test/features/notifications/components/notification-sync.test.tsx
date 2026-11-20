@@ -159,6 +159,19 @@ describe("NotificationSync", () => {
     await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledOnce());
   });
 
+  it("refreshes the open poke screen when a poke notification arrives", async () => {
+    renderSync("/pokes");
+
+    await waitFor(() =>
+      expect(mocks.subscribeToNotifications).toHaveBeenCalledOnce(),
+    );
+    const onChange = mocks.subscribeToNotifications.mock
+      .calls[0][1] as () => void;
+    onChange();
+
+    await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledOnce());
+  });
+
   it("refreshes the badge once for a burst of notification events", async () => {
     const { invalidateQueries } = renderSync("/");
 

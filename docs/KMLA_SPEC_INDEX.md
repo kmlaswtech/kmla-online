@@ -25,7 +25,7 @@
 | §6    | [홈 통합 피드](functional-spec/feed.md)                            | 피드 구성과 정렬,`#업`, 보기 방식, 홈 위젯                        |
 | §7    | [그룹](functional-spec/groups.md)                                  | 그룹 종류, 가입 정책, 초대, 멤버와 역할, 그룹 설정                |
 | §8–11 | [게시물 및 상호작용](functional-spec/posts.md)                     | 게시물, 댓글과 답글, 반응, 익명 활동 관리                         |
-| §12   | [프로필](functional-spec/profiles.md)                              | 프로필 열람과 편집, 프로필 타임라인                               |
+| §12   | [프로필](functional-spec/profiles.md)                              | 프로필 열람과 편집, 프로필 타임라인, 콕 찌르기                    |
 | §13   | [메시지](functional-spec/messaging.md)                             | 1:1 및 그룹 메시지 ·**구현**, 기간 알림 끄기 없음                 |
 | §14   | [알림](functional-spec/notifications.md)                           | 알림함, 중요도와 전달 채널, 알림 종류별 정책                      |
 | §15   | [메뉴 및 개인 설정](functional-spec/settings.md)                   | 메뉴 홈, 개인 설정, 실험실, 라이선스, 도움말, 앱 버전             |
