@@ -467,7 +467,8 @@ Push service로 나간 payload는 브라우저 Push 암호화(RFC 8291)로 보�
 - 알림은 `emit_notification`의 집계 경로를 쓴다. event key는 `poke:<low>:<high>:<횟수>`, aggregate key는
   `pokes:<수신자>`다. 집계 경로는 행위자만 바꾸므로 RPC가 이어서 `title`을 가장 최근 찌르기 문장으로 바꾸고,
   `private.sync_poke_notification`이 `actor_count`를 되찌를 차례이고 기다리는 기간이 남은 사람 수(최소 1)로 맞춘다.
-  기간이 지나 빠지는 찌르기는 다음 찌르기 때 인원에 반영된다.
+  받은 목록과 같이 탈퇴·정지한 찌른 사람은 세지 않는다. 되찌르면 내 인원을, 탈퇴하면 그 사람이 찌르고 기다리던
+  사람들의 인원을 다시 센다. 기간이 지나거나 찌른 사람이 정지되어 빠지는 찌르기는 다음 계산 때 반영된다.
 - 카테고리는 `poke`, 중요도는 보통이다. 유형별 opt-out은 `notification_preferences.poke_push_enabled`다.
   `update_my_notification_preferences`의 이 인자는 기본값이 `null`이라, 이전 앱의 다섯 인자 호출은 저장된 값을 남긴다.
 - 목적지 resolver는 `poked`를 `/pokes`로 보낸다. Push 카드 제목은 `콕 찌르기`, 본문은 행위자 이름과 인원에 `title`을

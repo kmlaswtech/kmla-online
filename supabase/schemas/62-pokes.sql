@@ -74,6 +74,7 @@ $$;
 alter function private.pokeable_profile(bigint) owner to postgres;
 
 -- 내가 되찌를 차례이고 기다리는 기간이 남은 사람 수. 콕 찌르기 알림의 인원이다(기능 명세 §14.14).
+-- 받은 목록과 같은 기준이라 정지·탈퇴한 사람은 세지 않는다. 기간 만료와 정지는 다음 계산 때 반영된다.
 create or replace function private.sync_poke_notification(p_recipient_profile_id bigint)
 returns void
 language plpgsql security definer
@@ -84,11 +85,10 @@ declare
 begin
   select count(*) into pending
   from private.poke_pairs as pair
-  join public.profiles as poker on poker.id = pair.last_poker_profile_id
   where (pair.low_profile_id = p_recipient_profile_id or pair.high_profile_id = p_recipient_profile_id)
     and pair.last_poker_profile_id <> p_recipient_profile_id
     and private.poke_awaits_reply(pair.last_poked_at)
-    and poker.deleted_at is null;
+    and private.pokeable_profile(pair.last_poker_profile_id);
 
   update public.notifications as notification
   set actor_count = greatest(pending, 1)
@@ -177,6 +177,8 @@ begin
     where id = notification_id;
     perform private.sync_poke_notification(p_profile_id);
   end if;
+  -- 되찌르기였다면 내 차례가 하나 줄었다.
+  perform private.sync_poke_notification(caller_id);
 
   return query select true, is_strong, pair.poke_count, pair.strong_count;
 end;
@@ -241,8 +243,7 @@ begin
   where (pair.low_profile_id = caller_id or pair.high_profile_id = caller_id)
     and pair.last_poker_profile_id <> caller_id
     and private.poke_awaits_reply(pair.last_poked_at)
-    and poker.status = 'accepted'
-    and poker.deleted_at is null
+    and private.pokeable_profile(poker.id)
   order by pair.last_poked_at desc, poker.id desc
   limit 100;
 end;
@@ -274,9 +275,10 @@ end;
 $$;
 alter function public.mark_my_pokes_seen() owner to postgres;
 
--- 추천: 최대 5명. 나를 찔렀지만 14일 동안 되찌르지 않아 받은 목록에서 빠진 사람을 먼저, 그다음 같은 기수에서
--- 최근 7일 동안 주고받지 않은 사람을 둔다. 내가 찌르고 기다리는 사람은 빼며, 같은 묶음 안의 순서는 하루 동안
--- 고정해 되찌르기 뒤 재검증마다 목록이 뒤섞이지 않게 한다.
+-- 추천: 최대 5명. 나를 찔렀지만 14일 동안 되찌르지 않아 받은 목록에서 빠진 사람을 먼저, 그다음 같은 기수를
+-- 둔다. 어느 쪽이든 되찌르기를 기다리는 쌍(내가 기다리는 사람, 받은 목록의 사람)은 뺀다. 번갈아 찌르므로 최근
+-- 14일 안에 주고받은 쌍은 늘 한쪽이 기다리는 중이라 "최근 7일 동안 주고받지 않은 사람" 조건은 따로 볼 필요가
+-- 없다. 같은 묶음 안의 순서는 하루 동안 고정해 되찌르기 뒤 재검증마다 목록이 뒤섞이지 않게 한다.
 create or replace function public.list_poke_suggestions()
 returns table (
   profile_id bigint,
@@ -314,20 +316,10 @@ begin
       and person.status = 'accepted'
       and person.deleted_at is null
       and not private.profile_suspended(person.id)
-      and not (
-        pair.low_profile_id is not null
-        and pair.last_poker_profile_id = caller_id
-        and private.poke_awaits_reply(pair.last_poked_at)
-      )
+      and not (pair.low_profile_id is not null and private.poke_awaits_reply(pair.last_poked_at))
       and (
-        (pair.low_profile_id is not null
-          and pair.last_poker_profile_id = person.id
-          and not private.poke_awaits_reply(pair.last_poked_at))
-        or (
-          caller.cohort is not null
-          and person.cohort = caller.cohort
-          and (pair.low_profile_id is null or pair.last_poked_at < now() - interval '7 days')
-        )
+        (pair.low_profile_id is not null and pair.last_poker_profile_id = person.id)
+        or (caller.cohort is not null and person.cohort = caller.cohort)
       )
   ) as candidate
   order by candidate.missed desc,

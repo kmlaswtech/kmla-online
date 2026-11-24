@@ -29,10 +29,14 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
   const formData = await request.formData();
   const rawProfileId = formData.get("profileId");
   const profileId =
-    typeof rawProfileId === "string" && /^[1-9][0-9]{0,17}$/.test(rawProfileId)
+    typeof rawProfileId === "string" && /^[1-9][0-9]*$/.test(rawProfileId)
       ? Number(rawProfileId)
       : null;
-  if (formData.get("intent") !== "poke" || profileId === null) {
+  if (
+    formData.get("intent") !== "poke" ||
+    profileId === null ||
+    !Number.isSafeInteger(profileId)
+  ) {
     return data({ error: "지원하지 않는 요청입니다." }, { status: 400 });
   }
 

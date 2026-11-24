@@ -434,6 +434,7 @@ declare
   caller public.profiles;
   conversation_id uuid;
   timeline_post_ids uuid[];
+  poked_profile_ids bigint[];
 begin
   select profile.* into caller
   from public.profiles as profile
@@ -543,8 +544,20 @@ begin
   delete from public.group_join_requests where profile_id = caller.id;
   delete from private.group_invites where created_by = caller.id;
   delete from public.user_timetables where profile_id = caller.id;
-  delete from private.poke_pairs
-  where low_profile_id = caller.id or high_profile_id = caller.id;
+  with deleted_pairs as (
+    delete from private.poke_pairs as pair
+    where pair.low_profile_id = caller.id or pair.high_profile_id = caller.id
+    returning pair.*
+  )
+  select array_agg(
+    case when deleted_pairs.low_profile_id = caller.id
+      then deleted_pairs.high_profile_id else deleted_pairs.low_profile_id end
+  ) into poked_profile_ids
+  from deleted_pairs
+  where deleted_pairs.last_poker_profile_id = caller.id;
+  -- 내가 찌르고 기다리던 사람의 콕 찌르기 알림 인원에서 나를 뺀다.
+  perform private.sync_poke_notification(poked_profile_id)
+  from unnest(poked_profile_ids) as poked_profile_id;
   delete from public.notification_preferences where profile_id = caller.id;
   delete from private.web_push_subscriptions where profile_id = caller.id;
   delete from private.notification_delivery_outbox where recipient_profile_id = caller.id;

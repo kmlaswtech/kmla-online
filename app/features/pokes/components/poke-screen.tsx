@@ -77,23 +77,37 @@ export function PokeScreen({
   const [poked, setPoked] = useState<ReadonlySet<number>>(() => new Set());
   const receivedView = useKeptList(received, poked);
   const suggestionView = useKeptList(suggestions, poked);
-  // 처음 열 때 보지 못한 푹 찌르기가 있으면 한 번 보여 준다. 재검증으로 받은 목록은 다시 재생하지 않는다.
-  const [burstKey, setBurstKey] = useState<number | null>(() =>
-    received.some((poke) => poke.strongEffectPending) ? 1 : null,
+  // 받은 목록에 새 찌르기가 들어오면 읽음 처리하고, 보지 못한 푹 찌르기는 효과를 한 번 보여 준다. 처음 열 때와
+  // 화면을 켜 둔 채 찔려 Realtime 재검증으로 목록이 바뀔 때 모두 해당한다. 되찌르기 뒤 재검증처럼 새 찌르기가
+  // 없으면 건너뛴다. loader에서 읽음 처리하면 재검증마다 효과 표시와 읽음이 엇갈린다.
+  const [seenPokes, setSeenPokes] = useState<ReadonlySet<string> | null>(null);
+  const [readRequest, setReadRequest] = useState(0);
+  const [burstKey, setBurstKey] = useState<number | null>(null);
+  const [burstLabel, setBurstLabel] = useState("");
+  const receivedKeys = received.map(
+    (poke) => `${poke.profileId}:${poke.pokedAt}`,
   );
-  const [burstLabel, setBurstLabel] = useState(() => {
-    const strong = received.find((poke) => poke.strongEffectPending);
-    return strong ? `${strong.name}님이 회원님을 푹 찔렀습니다!` : "";
-  });
+  if (seenPokes === null || receivedKeys.some((key) => !seenPokes.has(key))) {
+    const strong = received.find(
+      (poke, index) =>
+        poke.strongEffectPending && !seenPokes?.has(receivedKeys[index]),
+    );
+    setSeenPokes(new Set([...(seenPokes ?? []), ...receivedKeys]));
+    setReadRequest((count) => count + 1);
+    if (strong) {
+      setBurstLabel(`${strong.name}님이 회원님을 푹 찔렀습니다!`);
+      setBurstKey((key) => (key ?? 0) + 1);
+    }
+  }
 
-  // 화면이 뜰 때 한 번. loader에서 부르면 되찌르기 뒤의 재검증마다 다시 돈다.
   useEffect(() => {
+    if (readRequest === 0) return;
     markMyPokesSeen()
       .then(() =>
         queryClient.invalidateQueries({ queryKey: notificationKeys.badge() }),
       )
       .catch(() => undefined);
-  }, [queryClient]);
+  }, [readRequest, queryClient]);
 
   function handleResult(data: PokeActionData) {
     if ("error" in data) {
@@ -104,7 +118,7 @@ export function PokeScreen({
     void queryClient.invalidateQueries({ queryKey: pokeKeys.all });
     if (data.strong) {
       setBurstLabel("푹 찔렀습니다!");
-      setBurstKey(Date.now());
+      setBurstKey((key) => (key ?? 0) + 1);
     }
   }
 

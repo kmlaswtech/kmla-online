@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(36);
 
 create temp table fixture as
 select
@@ -224,6 +224,57 @@ select is(
   'the older app call keeps the poke switch as it was'
 );
 reset role;
+
+-- 관리자는 레거시 회원과 교사의 되찌르기 차례다. 교사에게 되찌르면 알림 인원이 줄어든다.
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000098', true);
+set local role authenticated;
+select results_eq(
+  $$select poked from public.poke_profile((select teacher_id from fixture))$$,
+  $$values (true)$$,
+  'poking back the teacher'
+);
+reset role;
+select is(
+  (select actor_count from public.notifications
+    where recipient_profile_id = (select admin_id from fixture) and kind = 'poked'),
+  1,
+  'poking back recounts the people still waiting on me'
+);
+
+-- 같은 기수 동기가 열흘 전에 관리자를 찔렀다. 아직 받은 목록에 있으므로 추천에는 나오지 않는다.
+insert into private.poke_pairs (low_profile_id, high_profile_id, last_poker_profile_id, last_poked_at)
+select least(admin_id, classmate_id), greatest(admin_id, classmate_id), classmate_id,
+  now() - interval '10 days'
+from fixture;
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000098', true);
+set local role authenticated;
+select ok(
+  exists (select 1 from public.list_my_pokes() where profile_id = (select classmate_id from fixture)),
+  'a classmate who poked me ten days ago waits in the received list'
+);
+select ok(
+  not exists (select 1 from public.list_poke_suggestions() where profile_id = (select classmate_id from fixture)),
+  'someone waiting in the received list is not also suggested'
+);
+reset role;
+
+-- 레거시 회원이 정지되면 그 찌르기는 받은 목록과 알림 인원에서 빠진다.
+insert into private.profile_suspensions (profile_id, reason, expires_at)
+select legacy_id, '콕 찌르기 테스트 정지', now() + interval '3 days' from fixture;
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000098', true);
+set local role authenticated;
+select ok(
+  not exists (select 1 from public.list_my_pokes() where profile_id = (select legacy_id from fixture)),
+  'a suspended poker leaves the received list'
+);
+reset role;
+select private.sync_poke_notification((select admin_id from fixture));
+select is(
+  (select actor_count from public.notifications
+    where recipient_profile_id = (select admin_id from fixture) and kind = 'poked'),
+  1,
+  'a suspended poker is not counted in the poke notification'
+);
 
 select * from finish();
 rollback;
