@@ -1,15 +1,22 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReceivedPoke } from "~/features/pokes/model/types";
 import { renderRoute } from "../../../router";
 
-const mocks = vi.hoisted(() => ({ markMyPokesSeen: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  markMyPokesSeen: vi.fn(),
+  listPokeSuggestions: vi.fn(),
+}));
 
 vi.mock("~/features/pokes/data/mutations", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  ...mocks,
+  markMyPokesSeen: mocks.markMyPokesSeen,
+}));
+vi.mock("~/features/pokes/data/queries", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  listPokeSuggestions: mocks.listPokeSuggestions,
 }));
 
 import { PokeScreen } from "~/features/pokes/components/poke-screen";
@@ -38,7 +45,7 @@ function Harness({ next }: { next: ReceivedPoke[] }) {
       <button type="button" onClick={() => setReceived(next)}>
         재검증
       </button>
-      <PokeScreen received={received} suggestions={[]} />
+      <PokeScreen received={received} />
     </>
   );
 }
@@ -57,6 +64,10 @@ describe("PokeScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.markMyPokesSeen.mockResolvedValue(undefined);
+    mocks.listPokeSuggestions.mockResolvedValue({
+      people: [],
+      nextCursor: null,
+    });
     Element.prototype.animate = vi.fn(
       () => ({ cancel: () => undefined }) as unknown as Animation,
     );
@@ -86,7 +97,7 @@ describe("PokeScreen", () => {
   });
 
   it("leaves out the received section when nobody is waiting on me", () => {
-    renderRoute(() => <PokeScreen received={[]} suggestions={[]} />);
+    renderRoute(() => <PokeScreen received={[]} />);
 
     expect(
       screen.queryByRole("region", { name: "받은 콕 찌르기" }),
@@ -94,5 +105,32 @@ describe("PokeScreen", () => {
     expect(
       screen.queryByText("지금 되찌를 사람이 없어요."),
     ).not.toBeInTheDocument();
+  });
+
+  it("does not suggest someone who is already waiting in the received list", async () => {
+    mocks.listPokeSuggestions.mockResolvedValue({
+      people: [
+        {
+          profileId: 1,
+          pubId: "kim",
+          name: "김철수",
+          avatarUrl: null,
+          cohortLabel: null,
+        },
+        {
+          profileId: 3,
+          pubId: "park",
+          name: "박민수",
+          avatarUrl: null,
+          cohortLabel: null,
+        },
+      ],
+      nextCursor: null,
+    });
+    renderRoute(() => <PokeScreen received={[receivedPoke({})]} />);
+
+    const suggestions = await screen.findByRole("region", { name: "추천" });
+    expect(within(suggestions).getByText("박민수")).toBeInTheDocument();
+    expect(within(suggestions).queryByText("김철수")).not.toBeInTheDocument();
   });
 });

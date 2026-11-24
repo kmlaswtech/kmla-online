@@ -1,19 +1,21 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useFetcher } from "react-router";
 import { toast } from "sonner";
 
 // 배럴은 알림 화면 컴포넌트를 끌고 온다. 뱃지 키만 필요하다.
 import { notificationKeys } from "~/features/notifications/data/cache";
 import { StrongPokeBurst } from "~/features/pokes/components/strong-poke-burst";
-import { pokeKeys } from "~/features/pokes/data/cache";
+import { pokeKeys, pokeSuggestionsQuery } from "~/features/pokes/data/cache";
 import { markMyPokesSeen } from "~/features/pokes/data/mutations";
 import { usePokeJab } from "~/features/pokes/hooks/use-poke-jab";
 import type { PokePerson, ReceivedPoke } from "~/features/pokes/model/types";
 import { RelativeTime } from "~/shared/components/relative-time";
 import { UserAvatar } from "~/shared/components/user-avatar";
 import { Badge } from "~/shared/ui/badge";
+import { useInfiniteScroll } from "~/shared/hooks/use-infinite-scroll";
 import { Button } from "~/shared/ui/button";
+import { Spinner } from "~/shared/ui/spinner";
 
 /** `clientAction`이 돌려주는 모양. 라우트 모듈의 타입을 feature가 가져오지 않도록 여기서 적는다. */
 export type PokeActionData =
@@ -52,21 +54,31 @@ function useKeptList<Item extends PokePerson>(
 }
 
 /**
- * 콕 찌르기 화면(기능 명세 §12.5). 받은 콕 찌르기와 추천을 차례로 둔다.
- * 찌르기는 라우트 `clientAction`으로 보내고 loader 재검증으로 목록을 고친다. 성공은 손 모션으로만 알리고
+ * 콕 찌르기 화면(기능 명세 §12.5). 받은 콕 찌르기와 추천을 차례로 둔다. 추천은 무한 스크롤이다.
+ * 찌르기는 라우트 `clientAction`으로 보내고 loader 재검증으로 받은 목록을 고친다. 성공은 손 모션으로만 알리고
  * 토스트는 실패에만 띄운다.
  */
-export function PokeScreen({
-  received,
-  suggestions,
-}: {
-  received: ReceivedPoke[];
-  suggestions: PokePerson[];
-}) {
+export function PokeScreen({ received }: { received: ReceivedPoke[] }) {
   const queryClient = useQueryClient();
   const [poked, setPoked] = useState<ReadonlySet<number>>(() => new Set());
   const receivedView = useKeptList(received, poked);
-  const suggestionView = useKeptList(suggestions, poked);
+  const suggestionPages = useInfiniteQuery(pokeSuggestionsQuery());
+  const suggestions = useMemo(
+    () => suggestionPages.data?.pages.flatMap((page) => page.people) ?? [],
+    [suggestionPages.data],
+  );
+  // 추천은 캐시에서 읽어 받은 목록보다 늦게 바뀐다. 화면을 켜 둔 채 찔린 사람은 받은 목록에만 둔다.
+  const receivedIds = new Set(receivedView.map((poke) => poke.profileId));
+  const suggestionView = useKeptList(suggestions, poked).filter(
+    (person) => !receivedIds.has(person.profileId),
+  );
+  const sentinelRef = useInfiniteScroll(
+    () => void suggestionPages.fetchNextPage(),
+    {
+      enabled: suggestionPages.hasNextPage,
+      pending: suggestionPages.isFetchingNextPage,
+    },
+  );
   // 받은 목록에 새 찌르기가 들어오면 읽음 처리하고, 보지 못한 푹 찌르기는 효과를 한 번 보여 준다. 처음 열 때와
   // 화면을 켜 둔 채 찔려 Realtime 재검증으로 목록이 바뀔 때 모두 해당한다. 되찌르기 뒤 재검증처럼 새 찌르기가
   // 없으면 건너뛴다. loader에서 읽음 처리하면 재검증마다 효과 표시와 읽음이 엇갈린다.
@@ -107,7 +119,8 @@ export function PokeScreen({
       return;
     }
     setPoked((current) => new Set(current).add(data.profileId));
-    void queryClient.invalidateQueries({ queryKey: pokeKeys.all });
+    // 프로필 버튼 상태만 다시 읽는다. 추천은 쌓인 페이지를 전부 다시 읽게 되므로 화면이 `콕 찔렀어요`로 남긴다.
+    void queryClient.invalidateQueries({ queryKey: pokeKeys.states() });
     if (data.strong) {
       showBurst("푹 찔렀습니다!");
     }
@@ -158,6 +171,11 @@ export function PokeScreen({
               onResult={handleResult}
             />
           ))}
+          {suggestionPages.hasNextPage ? (
+            <li ref={sentinelRef} className="flex justify-center py-4">
+              {suggestionPages.isFetchingNextPage ? <Spinner /> : null}
+            </li>
+          ) : null}
         </PokeSection>
       ) : null}
 

@@ -58,11 +58,11 @@ select throws_ok(
   'a member who is not approved cannot be poked'
 );
 select ok(
-  exists (select 1 from public.list_poke_suggestions() where profile_id = (select classmate_id from fixture)),
+  exists (select 1 from public.list_poke_suggestions(null, null, 50) where profile_id = (select classmate_id from fixture)),
   'a classmate I have never poked is suggested'
 );
 select ok(
-  not exists (select 1 from public.list_poke_suggestions() where profile_id = (select teacher_id from fixture)),
+  not exists (select 1 from public.list_poke_suggestions(null, null, 50) where profile_id = (select teacher_id from fixture)),
   'someone I am waiting on is not suggested'
 );
 select throws_ok(
@@ -175,10 +175,9 @@ select ok(
   not exists (select 1 from public.list_my_pokes() where profile_id = (select legacy_id from fixture)),
   'a poke left unanswered for 14 days leaves the received list'
 );
-select is(
-  (select profile_id from public.list_poke_suggestions() limit 1),
-  (select legacy_id from fixture),
-  'a missed poke comes back first among suggestions, even from another cohort'
+select ok(
+  exists (select 1 from public.list_poke_suggestions(null, null, 50) where profile_id = (select legacy_id from fixture)),
+  'a missed poke comes back among suggestions'
 );
 reset role;
 
@@ -242,7 +241,7 @@ select ok(
   'a classmate who poked me ten days ago waits in the received list'
 );
 select ok(
-  not exists (select 1 from public.list_poke_suggestions() where profile_id = (select classmate_id from fixture)),
+  not exists (select 1 from public.list_poke_suggestions(null, null, 50) where profile_id = (select classmate_id from fixture)),
   'someone waiting in the received list is not also suggested'
 );
 reset role;

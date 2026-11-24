@@ -4,6 +4,8 @@ import { formatCohort } from "~/features/profiles/model/format";
 import type {
   PokePerson,
   PokeState,
+  PokeSuggestionCursor,
+  PokeSuggestionPage,
   ReceivedPoke,
 } from "~/features/pokes/model/types";
 import { getSupabase } from "~/shared/supabase/client";
@@ -47,10 +49,25 @@ export async function listMyPokes(): Promise<ReceivedPoke[]> {
   }));
 }
 
-export async function listPokeSuggestions(): Promise<PokePerson[]> {
-  const { data, error } = await getSupabase().rpc("list_poke_suggestions");
+export const POKE_SUGGESTION_PAGE_SIZE = 20;
+
+export async function listPokeSuggestions(
+  cursor: PokeSuggestionCursor | null,
+): Promise<PokeSuggestionPage> {
+  const { data, error } = await getSupabase().rpc("list_poke_suggestions", {
+    p_after_score: cursor?.score,
+    p_after_id: cursor?.profileId,
+    p_limit: POKE_SUGGESTION_PAGE_SIZE,
+  });
   if (error) throw error;
-  return data.map(await signAvatars(data));
+  const last = data.at(-1);
+  return {
+    people: data.map(await signAvatars(data)),
+    nextCursor:
+      last && data.length === POKE_SUGGESTION_PAGE_SIZE
+        ? { score: last.sort_score, profileId: last.profile_id }
+        : null,
+  };
 }
 
 export async function getPokeState(profileId: number): Promise<PokeState> {

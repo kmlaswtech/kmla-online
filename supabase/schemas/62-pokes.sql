@@ -277,18 +277,40 @@ end;
 $$;
 alter function public.mark_my_pokes_seen() owner to postgres;
 
--- 추천: 최대 5명. 나를 찔렀지만 14일 동안 되찌르지 않아 받은 목록에서 빠진 사람을 먼저, 그다음 같은 기수를
--- 둔다. 어느 쪽이든 되찌르기를 기다리는 쌍(내가 기다리는 사람, 받은 목록의 사람)은 뺀다. 번갈아 찌르므로 최근
--- 14일 안에 주고받은 쌍은 늘 한쪽이 기다리는 중이라 "최근 7일 동안 주고받지 않은 사람" 조건은 따로 볼 필요가
--- 없다. 같은 묶음 안의 순서는 하루 동안 고정해 되찌르기 뒤 재검증마다 목록이 뒤섞이지 않게 한다.
-create or replace function public.list_poke_suggestions()
+-- 추천 묶음 안의 순서. 보는 사람·대상·날짜(한국 시각)마다 0 이상 1 미만의 값을 고정해, 하루 동안은 되찌르기 뒤
+-- 재검증이나 다음 페이지에서 순서가 뒤섞이지 않는다. pgTAP은 트랜잭션 안에서 이 함수를 바꿔 묶음 순서만 본다.
+create or replace function private.poke_suggestion_noise(p_viewer_id bigint, p_person_id bigint)
+returns double precision
+language sql stable
+set search_path = ''
+as $$
+  select ('x' || substr(md5(
+    p_person_id::text || ':' || p_viewer_id::text || ':'
+      || to_char(now() at time zone 'Asia/Seoul', 'YYYY-MM-DD')
+  ), 1, 8))::bit(32)::bigint / 4294967296.0;
+$$;
+alter function private.poke_suggestion_noise(bigint, bigint) owner to postgres;
+
+-- 추천(기능 명세 §12.5). 찌를 수 있는 사람 전원을 세 묶음으로 나눠 무한 스크롤로 준다.
+-- 1. 같은 기수·같은 성별
+-- 2. 같은 기수·다른 성별, ±1기수·같은 성별, 교사를 섞는다. 묶음 2의 시작 값을 묶음 1 범위 안에 두어 일부가
+--    묶음 1 사이에 섞인다.
+-- 3. 나머지
+-- 어느 쪽이든 되찌르기를 기다리는 쌍(내가 기다리는 사람, 받은 목록의 사람)은 뺀다. `sort_score`와 `profile_id`가
+-- 다음 페이지 커서다.
+create or replace function public.list_poke_suggestions(
+  p_after_score double precision default null,
+  p_after_id bigint default null,
+  p_limit integer default 20
+)
 returns table (
   profile_id bigint,
   pub_id text,
   name text,
   avatar_path text,
   cohort smallint,
-  is_returning_student boolean
+  is_returning_student boolean,
+  sort_score double precision
 )
 language plpgsql stable security definer
 set search_path = ''
@@ -296,7 +318,6 @@ as $$
 declare
   caller public.profiles;
   caller_id bigint := private.current_profile_id();
-  today text := to_char(now() at time zone 'Asia/Seoul', 'YYYY-MM-DD');
 begin
   if auth.uid() is null or caller_id is null then
     raise exception 'accepted profile required' using errcode = '42501';
@@ -304,12 +325,18 @@ begin
   select profile.* into caller from public.profiles as profile where profile.id = caller_id;
   return query
   select candidate.id, candidate.pub_id, candidate.name, candidate.avatar_path,
-    candidate.cohort, candidate.is_returning_student
+    candidate.cohort, candidate.is_returning_student, candidate.score
   from (
     select person.*,
-      (pair.low_profile_id is not null
-        and pair.last_poker_profile_id = person.id
-        and not private.poke_awaits_reply(pair.last_poked_at)) as missed
+      case
+        when caller.cohort is not null and person.cohort = caller.cohort
+          and person.gender = caller.gender then 0.0
+        when (caller.cohort is not null and person.cohort = caller.cohort)
+          or (caller.cohort is not null and abs(person.cohort - caller.cohort) = 1
+            and person.gender = caller.gender)
+          or person.type = 'teacher' then 0.7
+        else 2.0
+      end + private.poke_suggestion_noise(caller_id, person.id) as score
     from public.profiles as person
     left join private.poke_pairs as pair
       on pair.low_profile_id = least(caller_id, person.id)
@@ -319,17 +346,14 @@ begin
       and person.deleted_at is null
       and not private.profile_suspended(person.id)
       and not (pair.low_profile_id is not null and private.poke_awaits_reply(pair.last_poked_at))
-      and (
-        (pair.low_profile_id is not null and pair.last_poker_profile_id = person.id)
-        or (caller.cohort is not null and person.cohort = caller.cohort)
-      )
   ) as candidate
-  order by candidate.missed desc,
-    md5(candidate.id::text || ':' || caller_id::text || ':' || today)
-  limit 5;
+  where p_after_score is null
+    or (candidate.score, candidate.id) > (p_after_score, p_after_id)
+  order by candidate.score, candidate.id
+  limit least(greatest(coalesce(p_limit, 20), 1), 50);
 end;
 $$;
-alter function public.list_poke_suggestions() owner to postgres;
+alter function public.list_poke_suggestions(double precision, bigint, integer) owner to postgres;
 
 
 revoke all on function private.roll_strong_poke() from public;
@@ -344,5 +368,6 @@ revoke all on function public.list_my_pokes() from public, anon, authenticated;
 grant execute on function public.list_my_pokes() to authenticated;
 revoke all on function public.mark_my_pokes_seen() from public, anon, authenticated;
 grant execute on function public.mark_my_pokes_seen() to authenticated;
-revoke all on function public.list_poke_suggestions() from public, anon, authenticated;
-grant execute on function public.list_poke_suggestions() to authenticated;
+revoke all on function private.poke_suggestion_noise(bigint, bigint) from public;
+revoke all on function public.list_poke_suggestions(double precision, bigint, integer) from public, anon, authenticated;
+grant execute on function public.list_poke_suggestions(double precision, bigint, integer) to authenticated;

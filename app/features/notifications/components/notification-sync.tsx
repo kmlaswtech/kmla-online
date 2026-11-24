@@ -105,7 +105,7 @@ export function NotificationSync({ profileId }: { profileId: number }) {
   const sync = useEffectEvent((source: "notification" | "focus") => {
     void queryClient.invalidateQueries({ queryKey: notificationKeys.badge() });
     // 상대가 되찌르면 콕 찌르기 알림이 바뀐다. 떠 있는 프로필의 `콕 찔렀어요` 버튼이 이 신호로 다시 읽는다.
-    void queryClient.invalidateQueries({ queryKey: pokeKeys.all });
+    void queryClient.invalidateQueries({ queryKey: pokeKeys.states() });
 
     // 콕 찌르기 화면의 받은 목록은 따로 구독하지 않는다. 찔리면 콕 찌르기 알림이 바뀌므로 그 신호로 다시 읽는다.
     if (location.pathname === "/noti" || location.pathname === "/pokes") {

@@ -10,7 +10,13 @@ vi.mock("~/features/pokes", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   ...mocks,
 }));
+// 추천 첫 페이지는 쿼리 캐시가 데이터 함수를 직접 부른다.
+vi.mock("~/features/pokes/data/queries", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  listPokeSuggestions: mocks.listPokeSuggestions,
+}));
 
+import { resetQueryClientForTests } from "~/shared/lib/query-client";
 import { clientAction, clientLoader } from "~/routes/app/pokes";
 
 function submit(fields: Record<string, string>) {
@@ -25,23 +31,29 @@ function submit(fields: Record<string, string>) {
 describe("pokes route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetQueryClientForTests();
     mocks.listMyPokes.mockResolvedValue([]);
-    mocks.listPokeSuggestions.mockResolvedValue([]);
+    mocks.listPokeSuggestions.mockResolvedValue({
+      people: [],
+      nextCursor: null,
+    });
   });
 
-  it("loads received pokes and suggestions together", async () => {
+  it("loads received pokes and the first suggestion page together", async () => {
     let releaseSuggestions = () => undefined as void;
     mocks.listPokeSuggestions.mockReturnValue(
       new Promise((resolve) => {
-        releaseSuggestions = () => resolve([]);
+        releaseSuggestions = () => resolve({ people: [], nextCursor: null });
       }),
     );
     const loading = clientLoader();
-    // 받은 목록을 기다리는 동안 추천도 이미 나가 있다.
+    // 받은 목록을 기다리는 동안 추천 첫 페이지도 이미 나가 있다.
     expect(mocks.listMyPokes).toHaveBeenCalledOnce();
-    expect(mocks.listPokeSuggestions).toHaveBeenCalledOnce();
+    await vi.waitFor(() =>
+      expect(mocks.listPokeSuggestions).toHaveBeenCalledWith(null),
+    );
     releaseSuggestions();
-    await expect(loading).resolves.toEqual({ received: [], suggestions: [] });
+    await expect(loading).resolves.toEqual({ received: [] });
   });
 
   it("pokes a member and reports whether it turned into a strong poke", async () => {

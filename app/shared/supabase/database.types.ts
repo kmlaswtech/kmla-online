@@ -3022,7 +3022,7 @@ export type Database = {
         }[]
       }
       list_poke_suggestions: {
-        Args: Record<PropertyKey, never>
+        Args: { p_after_id?: number; p_after_score?: number; p_limit?: number }
         Returns: {
           avatar_path: string
           cohort: number
@@ -3030,6 +3030,7 @@ export type Database = {
           name: string
           profile_id: number
           pub_id: string
+          sort_score: number
         }[]
       }
       list_post_attachments: {

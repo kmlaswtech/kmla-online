@@ -185,7 +185,7 @@ describe("NotificationSync", () => {
 
     await waitFor(() =>
       expect(invalidateQueries).toHaveBeenCalledWith({
-        queryKey: pokeKeys.all,
+        queryKey: pokeKeys.states(),
       }),
     );
   });

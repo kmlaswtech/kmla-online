@@ -17,6 +17,18 @@ export interface ReceivedPoke extends PokePerson {
   strongEffectPending: boolean;
 }
 
+/** 추천 다음 페이지의 시작점. 서버가 정한 정렬 값과 회원 id다. */
+export interface PokeSuggestionCursor {
+  score: number;
+  profileId: number;
+}
+
+export interface PokeSuggestionPage {
+  people: PokePerson[];
+  /** 페이지가 덜 찼으면 `null`이다. */
+  nextCursor: PokeSuggestionCursor | null;
+}
+
 export interface PokeResult {
   poked: boolean;
   strong: boolean;

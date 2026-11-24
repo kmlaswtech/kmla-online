@@ -1,5 +1,22 @@
 SET local check_function_bodies = off;
 
+DROP FUNCTION "public"."list_poke_suggestions"();
+
+CREATE OR REPLACE FUNCTION private.poke_suggestion_noise (
+  p_viewer_id bigint,
+  p_person_id bigint
+)
+  RETURNS double precision
+  LANGUAGE sql
+  STABLE
+  SET search_path TO ''
+  AS $function$
+  select ('x' || substr(md5(
+    p_person_id::text || ':' || p_viewer_id::text || ':'
+      || to_char(now() at time zone 'Asia/Seoul', 'YYYY-MM-DD')
+  ), 1, 8))::bit(32)::bigint / 4294967296.0;
+$function$;
+
 CREATE OR REPLACE FUNCTION private.sync_poke_notification (
   p_recipient_profile_id bigint
 )
@@ -68,14 +85,19 @@ begin
 end;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.list_poke_suggestions()
+CREATE OR REPLACE FUNCTION public.list_poke_suggestions (
+  p_after_score double precision DEFAULT NULL::double precision,
+  p_after_id    bigint           DEFAULT NULL::bigint,
+  p_limit       integer          DEFAULT 20
+)
   RETURNS TABLE (
     profile_id           bigint,
     pub_id               text,
     name                 text,
     avatar_path          text,
     cohort               smallint,
-    is_returning_student boolean
+    is_returning_student boolean,
+    sort_score           double precision
   )
   LANGUAGE plpgsql
   STABLE
@@ -85,7 +107,6 @@ CREATE OR REPLACE FUNCTION public.list_poke_suggestions()
 declare
   caller public.profiles;
   caller_id bigint := private.current_profile_id();
-  today text := to_char(now() at time zone 'Asia/Seoul', 'YYYY-MM-DD');
 begin
   if auth.uid() is null or caller_id is null then
     raise exception 'accepted profile required' using errcode = '42501';
@@ -93,12 +114,18 @@ begin
   select profile.* into caller from public.profiles as profile where profile.id = caller_id;
   return query
   select candidate.id, candidate.pub_id, candidate.name, candidate.avatar_path,
-    candidate.cohort, candidate.is_returning_student
+    candidate.cohort, candidate.is_returning_student, candidate.score
   from (
     select person.*,
-      (pair.low_profile_id is not null
-        and pair.last_poker_profile_id = person.id
-        and not private.poke_awaits_reply(pair.last_poked_at)) as missed
+      case
+        when caller.cohort is not null and person.cohort = caller.cohort
+          and person.gender = caller.gender then 0.0
+        when (caller.cohort is not null and person.cohort = caller.cohort)
+          or (caller.cohort is not null and abs(person.cohort - caller.cohort) = 1
+            and person.gender = caller.gender)
+          or person.type = 'teacher' then 0.7
+        else 2.0
+      end + private.poke_suggestion_noise(caller_id, person.id) as score
     from public.profiles as person
     left join private.poke_pairs as pair
       on pair.low_profile_id = least(caller_id, person.id)
@@ -108,16 +135,15 @@ begin
       and person.deleted_at is null
       and not private.profile_suspended(person.id)
       and not (pair.low_profile_id is not null and private.poke_awaits_reply(pair.last_poked_at))
-      and (
-        (pair.low_profile_id is not null and pair.last_poker_profile_id = person.id)
-        or (caller.cohort is not null and person.cohort = caller.cohort)
-      )
   ) as candidate
-  order by candidate.missed desc,
-    md5(candidate.id::text || ':' || caller_id::text || ':' || today)
-  limit 5;
+  where p_after_score is null
+    or (candidate.score, candidate.id) > (p_after_score, p_after_id)
+  order by candidate.score, candidate.id
+  limit least(greatest(coalesce(p_limit, 20), 1), 50);
 end;
 $function$;
+
+REVOKE ALL ON FUNCTION "public"."list_poke_suggestions"(double precision, bigint, integer) FROM PUBLIC, "anon", "service_role";
 
 CREATE OR REPLACE FUNCTION public.poke_profile (
   p_profile_id bigint
@@ -417,3 +443,11 @@ begin
   perform private.invoke_storage_cleanup(p_quiet => true);
 end;
 $function$;
+
+REVOKE ALL ON FUNCTION "private"."poke_suggestion_noise"(bigint, bigint) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION "public"."list_poke_suggestions"(double precision, bigint, integer) TO "authenticated";
+
+REVOKE ALL ON FUNCTION "public"."list_poke_suggestions"(double precision, bigint, integer) FROM "postgres";
+
+GRANT EXECUTE ON FUNCTION "public"."list_poke_suggestions"(double precision, bigint, integer) TO "postgres";
