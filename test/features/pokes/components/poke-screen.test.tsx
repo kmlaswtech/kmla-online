@@ -84,4 +84,15 @@ describe("PokeScreen", () => {
 
     expect(mocks.markMyPokesSeen).toHaveBeenCalledOnce();
   });
+
+  it("leaves out the received section when nobody is waiting on me", () => {
+    renderRoute(() => <PokeScreen received={[]} suggestions={[]} />);
+
+    expect(
+      screen.queryByRole("region", { name: "받은 콕 찌르기" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("지금 되찌를 사람이 없어요."),
+    ).not.toBeInTheDocument();
+  });
 });

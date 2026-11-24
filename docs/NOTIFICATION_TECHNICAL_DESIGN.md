@@ -458,8 +458,8 @@ Push service로 나간 payload는 브라우저 Push 암호화(RFC 8291)로 보�
 
 콕 찌르기(기능 명세 §12.5, §14.14)는 `private.poke_pairs`에 두 사람 사이 한 행만 둔다. 행은 마지막으로 찌른 사람,
 주고받은 횟수, 푹 찌르기 횟수와 찔린 사람이 아직 보지 못한 푹 찌르기 효과를 기억한다. 클라이언트 권한은 없고
-`poke_profile`, `get_poke_state`, `list_my_pokes`, `mark_my_pokes_seen`, `list_poke_suggestions`,
-`search_poke_targets` definer RPC만 쓴다. 되찌르기를 기다리는 기간(14일)은 `private.poke_awaits_reply()` 한 곳에서
+`poke_profile`, `get_poke_state`, `list_my_pokes`, `mark_my_pokes_seen`, `list_poke_suggestions`
+definer RPC만 쓴다. 되찌르기를 기다리는 기간(14일)은 `private.poke_awaits_reply()` 한 곳에서
 정하고, 차례·받은 목록·알림 인원·추천이 모두 이 함수를 따른다.
 
 - `poke_profile`은 쌍 단위 advisory lock으로 처음 찌르기의 경합도 직렬화한다. 마지막으로 찌른 사람이 기다리는 기간 안에

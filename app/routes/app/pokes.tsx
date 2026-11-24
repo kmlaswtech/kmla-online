@@ -52,7 +52,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 export default function PokesPage({ loaderData }: Route.ComponentProps) {
   return (
     <>
-      <PageHeader title="콕 찌르기" back="/menu" />
+      <PageHeader title="콕 찌르기" back />
       <PokeScreen
         received={loaderData.received}
         suggestions={loaderData.suggestions}

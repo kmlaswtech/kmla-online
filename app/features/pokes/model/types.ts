@@ -17,11 +17,6 @@ export interface ReceivedPoke extends PokePerson {
   strongEffectPending: boolean;
 }
 
-export interface PokeTarget extends PokePerson {
-  /** 내가 찌르고 상대의 되찌르기를 기다리는 중이다. */
-  waiting: boolean;
-}
-
 export interface PokeResult {
   poked: boolean;
   strong: boolean;

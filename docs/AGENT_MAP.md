@@ -270,7 +270,6 @@ Every Supabase call lives in a feature's `data/`. **Called from** is relative to
 | `search_group_posts`                          | `posts/data/queries.ts`                                                         | `34-content-api.sql`          |
 | `search_message_recipients`                   | `messaging/data/queries.ts`                                                     | `71-messaging.sql`            |
 | `search_messages`                             | `messaging/data/queries.ts`                                                     | `71-messaging.sql`            |
-| `search_poke_targets`                         | `pokes/data/queries.ts`                                                         | `62-pokes.sql`                |
 | `send_message`                                | `messaging/data/mutations.ts`                                                   | `71-messaging.sql`            |
 | `send_story_reaction`                         | `stories/data/mutations.ts`                                                     | `42-stories.sql`              |
 | `set_comment_reaction`                        | `posts/data/mutations.ts`                                                       | `34-content-api.sql`          |

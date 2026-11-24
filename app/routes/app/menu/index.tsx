@@ -5,7 +5,6 @@ import {
   ExternalLinkIcon,
   GiftIcon,
   MegaphoneIcon,
-  PointerIcon,
   SettingsIcon,
   ShieldCheckIcon,
   UtensilsIcon,
@@ -73,7 +72,6 @@ const shortcuts: Shortcut[] = [
     icon: GiftIcon,
     for: ["student"],
   },
-  { to: "/pokes", label: "콕 찌르기", icon: PointerIcon },
 ];
 
 const tileClassName =

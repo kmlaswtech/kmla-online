@@ -3568,18 +3568,6 @@ export type Database = {
         }
         Returns: Json
       }
-      search_poke_targets: {
-        Args: { p_query: string }
-        Returns: {
-          avatar_path: string
-          cohort: number
-          is_returning_student: boolean
-          name: string
-          profile_id: number
-          pub_id: string
-          waiting: boolean
-        }[]
-      }
       send_message: {
         Args: {
           p_body: string

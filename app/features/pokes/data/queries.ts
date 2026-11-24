@@ -4,7 +4,6 @@ import { formatCohort } from "~/features/profiles/model/format";
 import type {
   PokePerson,
   PokeState,
-  PokeTarget,
   ReceivedPoke,
 } from "~/features/pokes/model/types";
 import { getSupabase } from "~/shared/supabase/client";
@@ -52,15 +51,6 @@ export async function listPokeSuggestions(): Promise<PokePerson[]> {
   const { data, error } = await getSupabase().rpc("list_poke_suggestions");
   if (error) throw error;
   return data.map(await signAvatars(data));
-}
-
-export async function searchPokeTargets(query: string): Promise<PokeTarget[]> {
-  const { data, error } = await getSupabase().rpc("search_poke_targets", {
-    p_query: query,
-  });
-  if (error) throw error;
-  const toPerson = await signAvatars(data);
-  return data.map((row) => ({ ...toPerson(row), waiting: row.waiting }));
 }
 
 export async function getPokeState(profileId: number): Promise<PokeState> {

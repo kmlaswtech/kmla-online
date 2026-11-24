@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(34);
 
 create temp table fixture as
 select
@@ -64,17 +64,6 @@ select ok(
 select ok(
   not exists (select 1 from public.list_poke_suggestions() where profile_id = (select teacher_id from fixture)),
   'someone I am waiting on is not suggested'
-);
-select results_eq(
-  $$select waiting from public.search_poke_targets((select teacher_name from fixture))
-    where profile_id = (select teacher_id from fixture)$$,
-  $$values (true)$$,
-  'search finds members by name with their poke state'
-);
-select ok(
-  not exists (select 1 from public.search_poke_targets((select admin_name from fixture))
-    where profile_id = (select admin_id from fixture)),
-  'search leaves me out'
 );
 select throws_ok(
   $$select * from private.poke_pairs$$,

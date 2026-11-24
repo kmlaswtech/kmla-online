@@ -578,64 +578,6 @@ begin
 end;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.search_poke_targets (
-  p_query text
-)
-  RETURNS TABLE (
-    profile_id           bigint,
-    pub_id               text,
-    name                 text,
-    avatar_path          text,
-    cohort               smallint,
-    is_returning_student boolean,
-    waiting              boolean
-  )
-  LANGUAGE plpgsql
-  STABLE
-  SECURITY DEFINER
-  SET search_path TO ''
-  AS $function$
-declare
-  caller_id bigint := private.current_profile_id();
-  normalized_query text := lower(
-    regexp_replace(btrim(coalesce(p_query, '')), '[[:space:]]+', '', 'g')
-  );
-begin
-  if auth.uid() is null or caller_id is null then
-    raise exception 'accepted profile required' using errcode = '42501';
-  end if;
-  if char_length(normalized_query) < 1 or char_length(normalized_query) > 50 then
-    return;
-  end if;
-  return query
-  select person.id, person.pub_id, person.name, person.avatar_path, person.cohort,
-    person.is_returning_student,
-    coalesce(
-      pair.last_poker_profile_id = caller_id and private.poke_awaits_reply(pair.last_poked_at),
-      false
-    )
-  from public.profiles as person
-  left join private.poke_pairs as pair
-    on pair.low_profile_id = least(caller_id, person.id)
-    and pair.high_profile_id = greatest(caller_id, person.id)
-  where person.id <> caller_id
-    and person.status = 'accepted'
-    and person.deleted_at is null
-    and not private.profile_suspended(person.id)
-    and person.search_name like '%' || normalized_query || '%'
-  order by
-    case
-      when person.search_name = normalized_query then 0
-      when person.search_name like normalized_query || '%' then 1
-      else 2
-    end,
-    person.name, person.id
-  limit 10;
-end;
-$function$;
-
-REVOKE ALL ON FUNCTION "public"."search_poke_targets"(text) FROM PUBLIC, "anon", "service_role";
-
 -- 콕 찌르기 인자가 늘었다. 기본값이 있어 이전 앱의 다섯 인자 호출도 이 함수로 풀린다.
 DROP FUNCTION "public"."update_my_notification_preferences"(boolean, boolean, boolean, boolean, boolean);
 
@@ -936,12 +878,6 @@ GRANT EXECUTE ON FUNCTION "public"."poke_profile"(bigint) TO "authenticated";
 REVOKE ALL ON FUNCTION "public"."poke_profile"(bigint) FROM "postgres";
 
 GRANT EXECUTE ON FUNCTION "public"."poke_profile"(bigint) TO "postgres";
-
-GRANT EXECUTE ON FUNCTION "public"."search_poke_targets"(text) TO "authenticated";
-
-REVOKE ALL ON FUNCTION "public"."search_poke_targets"(text) FROM "postgres";
-
-GRANT EXECUTE ON FUNCTION "public"."search_poke_targets"(text) TO "postgres";
 
 GRANT EXECUTE ON FUNCTION "public"."update_my_notification_preferences"(boolean, boolean, boolean, boolean, boolean, boolean) TO "authenticated";
 

@@ -1,5 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SearchIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useFetcher } from "react-router";
 import { toast } from "sonner";
@@ -9,25 +8,16 @@ import { notificationKeys } from "~/features/notifications/data/cache";
 import { StrongPokeBurst } from "~/features/pokes/components/strong-poke-burst";
 import { pokeKeys } from "~/features/pokes/data/cache";
 import { markMyPokesSeen } from "~/features/pokes/data/mutations";
-import { searchPokeTargets } from "~/features/pokes/data/queries";
 import { usePokeJab } from "~/features/pokes/hooks/use-poke-jab";
-import type {
-  PokePerson,
-  PokeTarget,
-  ReceivedPoke,
-} from "~/features/pokes/model/types";
+import type { PokePerson, ReceivedPoke } from "~/features/pokes/model/types";
 import { RelativeTime } from "~/shared/components/relative-time";
 import { UserAvatar } from "~/shared/components/user-avatar";
 import { Badge } from "~/shared/ui/badge";
 import { Button } from "~/shared/ui/button";
-import { Input } from "~/shared/ui/input";
-import { Spinner } from "~/shared/ui/spinner";
 
 /** `clientAction`이 돌려주는 모양. 라우트 모듈의 타입을 feature가 가져오지 않도록 여기서 적는다. */
 export type PokeActionData =
   { poked: boolean; strong: boolean; profileId: number } | { error: string };
-
-const SEARCH_DELAY_MS = 250;
 
 /**
  * 방금 찌른 사람은 재검증으로 목록에서 빠져도 이 화면에 있는 동안 `콕 찔렀어요`로 남긴다. 행이 바로 사라지면
@@ -62,7 +52,7 @@ function useKeptList<Item extends PokePerson>(
 }
 
 /**
- * 콕 찌르기 화면(기능 명세 §12.5). 회원 검색, 받은 콕 찌르기, 추천을 차례로 둔다.
+ * 콕 찌르기 화면(기능 명세 §12.5). 받은 콕 찌르기와 추천을 차례로 둔다.
  * 찌르기는 라우트 `clientAction`으로 보내고 loader 재검증으로 목록을 고친다. 성공은 손 모션으로만 알리고
  * 토스트는 실패에만 띄운다.
  */
@@ -125,15 +115,10 @@ export function PokeScreen({
 
   return (
     <div className="flex flex-col gap-8 px-4 pt-4 pb-10 sm:px-0">
-      <PokeSearch poked={poked} onResult={handleResult} />
-
-      <PokeSection title="받은 콕 찌르기">
-        {receivedView.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            지금 되찌를 사람이 없어요.
-          </p>
-        ) : (
-          receivedView.map((poke) => (
+      {/* 되찌를 사람이 없으면 구역째 두지 않는다. 빈 안내 문구는 남는 공간만 차지한다. */}
+      {receivedView.length > 0 ? (
+        <PokeSection title="받은 콕 찌르기">
+          {receivedView.map((poke) => (
             <PokeRow
               key={poke.profileId}
               person={poke}
@@ -158,9 +143,9 @@ export function PokeScreen({
               }
               onResult={handleResult}
             />
-          ))
-        )}
-      </PokeSection>
+          ))}
+        </PokeSection>
+      ) : null}
 
       {suggestionView.length > 0 ? (
         <PokeSection title="추천">
@@ -197,78 +182,6 @@ function PokeSection({
         {title}
       </h2>
       <ul className="flex flex-col">{children}</ul>
-    </section>
-  );
-}
-
-function PokeSearch({
-  poked,
-  onResult,
-}: {
-  poked: ReadonlySet<number>;
-  onResult: (data: PokeActionData) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [term, setTerm] = useState("");
-
-  useEffect(() => {
-    const timer = window.setTimeout(
-      () => setTerm(query.trim()),
-      SEARCH_DELAY_MS,
-    );
-    return () => window.clearTimeout(timer);
-  }, [query]);
-
-  const results = useQuery({
-    queryKey: pokeKeys.search(term),
-    queryFn: () => searchPokeTargets(term),
-    enabled: term.length > 0,
-  });
-
-  return (
-    <section aria-label="회원 찾기" className="flex flex-col gap-2">
-      <div className="relative">
-        <SearchIcon
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="콕 찌를 사람 이름"
-          aria-label="콕 찌를 사람 찾기"
-          enterKeyHint="search"
-          className="pl-9"
-        />
-      </div>
-      {term.length > 0 ? (
-        <ul className="flex flex-col" aria-live="polite">
-          {results.isPending ? (
-            <li className="flex justify-center py-4">
-              <Spinner />
-            </li>
-          ) : results.isError ? (
-            <li className="py-4 text-center text-sm text-muted-foreground">
-              찾지 못했습니다. 잠시 뒤 다시 시도해 주세요.
-            </li>
-          ) : results.data.length === 0 ? (
-            <li className="py-4 text-center text-sm text-muted-foreground">
-              이름이 맞는 회원이 없어요.
-            </li>
-          ) : (
-            results.data.map((person: PokeTarget) => (
-              <PokeRow
-                key={person.profileId}
-                person={person}
-                meta={person.cohortLabel}
-                waiting={person.waiting || poked.has(person.profileId)}
-                onResult={onResult}
-              />
-            ))
-          )}
-        </ul>
-      ) : null}
     </section>
   );
 }

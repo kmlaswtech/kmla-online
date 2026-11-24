@@ -24,8 +24,6 @@ const PARENT_ROUTE: Record<string, string | null> = {
   "/profile/:pubId/posts/:postId": "/profile/:pubId",
   "/noti": HOME,
   "/menu/gongang": HOME,
-  "/pokes": "/menu",
-  "/menu": HOME,
   "/messenger": HOME,
   "/messenger/:roomId": "/messenger",
 };

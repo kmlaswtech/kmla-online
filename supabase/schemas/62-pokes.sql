@@ -331,59 +331,6 @@ end;
 $$;
 alter function public.list_poke_suggestions() owner to postgres;
 
--- 이름으로 찌를 사람을 찾는다. 각 사람에게 지금 찌를 수 있는지를 함께 돌려준다.
-create or replace function public.search_poke_targets(p_query text)
-returns table (
-  profile_id bigint,
-  pub_id text,
-  name text,
-  avatar_path text,
-  cohort smallint,
-  is_returning_student boolean,
-  waiting boolean
-)
-language plpgsql stable security definer
-set search_path = ''
-as $$
-declare
-  caller_id bigint := private.current_profile_id();
-  normalized_query text := lower(
-    regexp_replace(btrim(coalesce(p_query, '')), '[[:space:]]+', '', 'g')
-  );
-begin
-  if auth.uid() is null or caller_id is null then
-    raise exception 'accepted profile required' using errcode = '42501';
-  end if;
-  if char_length(normalized_query) < 1 or char_length(normalized_query) > 50 then
-    return;
-  end if;
-  return query
-  select person.id, person.pub_id, person.name, person.avatar_path, person.cohort,
-    person.is_returning_student,
-    coalesce(
-      pair.last_poker_profile_id = caller_id and private.poke_awaits_reply(pair.last_poked_at),
-      false
-    )
-  from public.profiles as person
-  left join private.poke_pairs as pair
-    on pair.low_profile_id = least(caller_id, person.id)
-    and pair.high_profile_id = greatest(caller_id, person.id)
-  where person.id <> caller_id
-    and person.status = 'accepted'
-    and person.deleted_at is null
-    and not private.profile_suspended(person.id)
-    and person.search_name like '%' || normalized_query || '%'
-  order by
-    case
-      when person.search_name = normalized_query then 0
-      when person.search_name like normalized_query || '%' then 1
-      else 2
-    end,
-    person.name, person.id
-  limit 10;
-end;
-$$;
-alter function public.search_poke_targets(text) owner to postgres;
 
 revoke all on function private.roll_strong_poke() from public;
 revoke all on function private.pokeable_profile(bigint) from public;
@@ -399,5 +346,3 @@ revoke all on function public.mark_my_pokes_seen() from public, anon, authentica
 grant execute on function public.mark_my_pokes_seen() to authenticated;
 revoke all on function public.list_poke_suggestions() from public, anon, authenticated;
 grant execute on function public.list_poke_suggestions() to authenticated;
-revoke all on function public.search_poke_targets(text) from public, anon, authenticated;
-grant execute on function public.search_poke_targets(text) to authenticated;
