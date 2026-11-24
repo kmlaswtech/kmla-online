@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CommentText } from "~/features/posts/components/comment/comment-text";
 import { PostMarkdown } from "~/features/posts/components/post-markdown";
 import type { PostMention } from "~/features/posts/model/mentions";
 
-import { renderRoute, screen } from "../../../router";
+import { fireEvent, renderRoute, screen } from "../../../router";
 
 const 한별: PostMention = {
   ordinal: 1,
@@ -47,6 +47,40 @@ describe("mentions in a post body", () => {
 
     expect(screen.getByText("@탈퇴한 사용자")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("carries who it calls so a copied mention can be pasted as one", () => {
+    renderRoute(() => (
+      <PostMarkdown mentions={[한별]}>{"[@이한별](m:1) 님"}</PostMarkdown>
+    ));
+
+    expect(screen.getByRole("link", { name: "@이한별" })).toHaveAttribute(
+      "data-mention",
+      "kmla-mention:hanbyeol-25:이한별",
+    );
+  });
+
+  it("copies a mention selected on its own as a mention", () => {
+    renderRoute(() => (
+      <PostMarkdown mentions={[한별]}>
+        {"[@이한별](m:1) 님이 맡습니다"}
+      </PostMarkdown>
+    ));
+    const chip = screen.getByRole("link", { name: "@이한별" });
+    // 칩 안쪽만 고르면 선택 영역에는 글자만 들어 있다.
+    const range = document.createRange();
+    range.selectNodeContents(chip);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    const setData = vi.fn();
+
+    fireEvent.copy(chip, { clipboardData: { setData } });
+
+    expect(setData).toHaveBeenCalledWith("text/plain", "@이한별");
+    expect(setData).toHaveBeenCalledWith(
+      "text/html",
+      expect.stringContaining('data-mention="kmla-mention:hanbyeol-25:이한별"'),
+    );
   });
 
   it("keeps ordinary external links working beside a mention", () => {

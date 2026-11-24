@@ -15,6 +15,8 @@ export function getPostErrorMessage(error: unknown): string {
     return "본문 또는 첨부 파일을 추가해 주세요.";
   if (message.includes("anonymous activity is restricted"))
     return "이 그룹에서는 현재 익명 활동이 제한되어 있습니다.";
+  if (message.includes("every mention must name a current group member"))
+    return "이 그룹의 멤버가 아닌 사람이 멘션되어 있습니다. 해당 멘션을 지운 뒤 다시 시도해 주세요.";
 
   if (candidate.code === "42501") return "이 작업을 수행할 권한이 없습니다.";
   if (candidate.code === "23505")

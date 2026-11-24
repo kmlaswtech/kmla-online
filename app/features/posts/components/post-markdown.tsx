@@ -90,10 +90,17 @@ function copyPostText(event: ClipboardEvent<HTMLDivElement>) {
   const range = selection.getRangeAt(0);
   if (!event.currentTarget.contains(range.commonAncestorContainer)) return;
   const fragment = range.cloneContents();
+  const text = copiedPlainText(fragment);
   const html = document.createElement("div");
-  html.append(fragment.cloneNode(true));
+  // 멘션 칩 안쪽만 고르면 선택 영역에는 글자만 있다. 칩을 다시 씌워야 편집기가 멘션으로 되읽는다.
+  const ancestor = range.commonAncestorContainer;
+  const chip = (
+    ancestor instanceof Element ? ancestor : ancestor.parentElement
+  )?.closest("[data-mention]");
+  const holder = chip ? html.appendChild(chip.cloneNode(false)) : html;
+  holder.appendChild(fragment);
   event.preventDefault();
-  event.clipboardData.setData("text/plain", copiedPlainText(fragment));
+  event.clipboardData.setData("text/plain", text);
   event.clipboardData.setData("text/html", html.innerHTML);
 }
 

@@ -5,6 +5,7 @@ import type {
 import {
   EVERYONE_MENTION_ORDINAL,
   assignMentionOrdinals,
+  mentionOrdinals,
   fromMentionDisplay,
   mentionPlainText,
   mentionTokenPattern,
@@ -152,7 +153,7 @@ export function addMessageMention(
   const { entries: next, assigned } = assignMentionOrdinals(
     entries,
     [suggestion.target],
-    body,
+    mentionOrdinals(body),
   );
   const [entry] = assigned;
   return entry ? { entries: next, entry } : null;

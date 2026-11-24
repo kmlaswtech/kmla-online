@@ -1,6 +1,9 @@
 import { Link } from "react-router";
 
-import type { PostMention } from "~/features/posts/model/mentions";
+import {
+  encodeMentionClipboard,
+  type PostMention,
+} from "~/features/posts/model/mentions";
 import { cn } from "~/shared/lib/utils";
 
 /** 본문 안의 사용자 멘션(기능 명세 §8.14). 이름은 저장된 토큰이 아니라 읽기 RPC의 `mentions`에서 온다. */
@@ -25,7 +28,15 @@ export function MentionChip({
 
   if (!mention.pub_id) return <span className={className}>@{label}</span>;
   return (
-    <Link className={className} to={`/profile/${mention.pub_id}`}>
+    <Link
+      className={className}
+      to={`/profile/${mention.pub_id}`}
+      // 복사한 칩을 본문 편집기가 멘션으로 되읽는 표식이다. 프로필 주소만으로는 링크와 구분되지 않는다.
+      data-mention={encodeMentionClipboard({
+        pubId: mention.pub_id,
+        name: label,
+      })}
+    >
       @{label}
     </Link>
   );

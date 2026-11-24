@@ -98,7 +98,6 @@ export function GroupPostEditor({
   // 시작한다.
   const mentionDraft = useMentionDraft(post?.mentions ?? []);
   const bodyHandle = useRef<PostBodyInputHandle>(null);
-  const bodyRef = useRef(initial.body);
   const [draftTitle, setDraftTitle] = useState(initial.title);
   const [draftBody, setDraftBody] = useState(initial.body);
   const [draftCategoryId, setDraftCategoryId] = useState(initial.categoryId);
@@ -201,6 +200,9 @@ export function GroupPostEditor({
     }
   };
 
+  // Milkdown의 변경 알림이 오기 전에 게시하거나 멘션을 추가해도 현재 문서를 기준으로 판단한다.
+  const readBody = () => bodyHandle.current?.getValue() ?? draftBody;
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving) return;
@@ -211,10 +213,10 @@ export function GroupPostEditor({
       }));
       return;
     }
-    // 본문만 폼 밖에서 온다 — Markdown 편집기는 네이티브 폼 필드가 아니라 ref에 싣는다.
+    // 폼의 숨은 본문 필드는 늦게 갱신될 수 있어 편집기에서 현재 값을 읽는다.
     const nextValues: PostFormValues = {
       ...readPostForm(new FormData(event.currentTarget)),
-      body: normalizePostMarkdownSource(bodyRef.current),
+      body: normalizePostMarkdownSource(readBody()),
       mentions: mentionDraft.entries,
     };
     const nextErrors = validatePostForm(
@@ -259,7 +261,7 @@ export function GroupPostEditor({
               const nextIdentity = target.value as PostIdentity;
               if (
                 nextIdentity === "anonymous" &&
-                countMentionTargets(draftBody, mentionDraft.entries) > 0
+                countMentionTargets(readBody(), mentionDraft.entries) > 0
               ) {
                 setFormErrors((current) => ({
                   ...current,
@@ -353,10 +355,15 @@ export function GroupPostEditor({
             <PostBodyInput
               value={draftBody}
               handleRef={bodyHandle}
-              onValueChange={(value) => {
-                bodyRef.current = value;
-                setDraftBody(value);
+              mentionClipboard={{
+                targetOf: mentionDraft.targetOf,
+                // 익명 글은 멘션할 수 없어 붙여 넣은 멘션도 번호를 주지 않는다. 평문으로 붙는다.
+                adopt: (targets, usedOrdinals) =>
+                  draftIdentity === "anonymous"
+                    ? []
+                    : mentionDraft.adopt(targets, usedOrdinals),
               }}
+              onValueChange={setDraftBody}
             />
             {/* 익명 글은 멘션 불가(기능 명세 §8.14). 운영진 명의는 익명이 아니다(§8.6). */}
             {draftIdentity === "anonymous" ? null : (
@@ -372,7 +379,7 @@ export function GroupPostEditor({
                   onSelect={(candidates) => {
                     const assigned = mentionDraft.register(
                       candidates,
-                      draftBody,
+                      readBody(),
                     );
                     bodyHandle.current?.insertMentions(
                       assigned.map(({ name, ordinal }) => ({

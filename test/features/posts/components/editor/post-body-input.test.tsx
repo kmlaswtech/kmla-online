@@ -21,7 +21,10 @@ vi.mock(
       initialValue: string;
       handleRef?: React.RefObject<PostBodyInputHandle | null>;
     }) {
-      useImperativeHandle(handleRef, () => ({ insertMentions }));
+      useImperativeHandle(handleRef, () => ({
+        getValue: () => initialValue,
+        insertMentions,
+      }));
       return <div aria-label="Milkdown 본문">{initialValue}</div>;
     }
     return { default: MockMarkdownEditor };

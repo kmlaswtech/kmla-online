@@ -11,20 +11,30 @@ const {
 }));
 
 vi.mock("~/features/posts/components/editor/post-body-input", async () => {
-  const { useImperativeHandle } = await import("react");
+  const { useImperativeHandle, useRef } = await import("react");
   return {
     PostBodyInput: ({
       value,
       onValueChange,
       handleRef,
+      mentionClipboard,
     }: {
       value: string;
       onValueChange?: (value: string) => void;
       handleRef?: React.RefObject<{
+        getValue(): string | undefined;
         insertMentions(mentions: { label: string; ordinal: number }[]): void;
       } | null>;
+      mentionClipboard?: {
+        adopt(
+          targets: { pubId: string; name: string }[],
+          usedOrdinals: number[],
+        ): { pubId: string; ordinal: number }[];
+      };
     }) => {
+      const pendingPaste = useRef<string | null>(null);
       useImperativeHandle(handleRef, () => ({
+        getValue: () => pendingPaste.current ?? value,
         insertMentions(mentions: { label: string; ordinal: number }[]) {
           onValueChange?.(
             value +
@@ -34,12 +44,32 @@ vi.mock("~/features/posts/components/editor/post-body-input", async () => {
           );
         },
       }));
+      // 편집기가 붙여 넣은 멘션을 받는 방식 그대로다: 초안이 번호를 주면 토큰, 안 주면 평문.
+      const pasteMention = (delayChange = false) => {
+        const target = { pubId: "member-2", name: "붙여넣은 멤버" };
+        const [assigned] = mentionClipboard?.adopt([target], []) ?? [];
+        const next =
+          value +
+          (assigned
+            ? `[@${target.name}](m:${assigned.ordinal}) `
+            : `@${target.name} `);
+        if (delayChange) pendingPaste.current = next;
+        else onValueChange?.(next);
+      };
       return (
-        <textarea
-          aria-label="Markdown 본문"
-          value={value}
-          onChange={(event) => onValueChange?.(event.target.value)}
-        />
+        <>
+          <textarea
+            aria-label="Markdown 본문"
+            value={value}
+            onChange={(event) => onValueChange?.(event.target.value)}
+          />
+          <button type="button" onClick={() => pasteMention()}>
+            멘션 붙여넣기
+          </button>
+          <button type="button" onClick={() => pasteMention(true)}>
+            변경 알림 전 멘션 붙여넣기
+          </button>
+        </>
       );
     },
   };
@@ -180,6 +210,39 @@ describe("GroupPostEditor 저장 경로", () => {
         [expect.objectContaining({ file })],
         expect.anything(),
       ),
+    );
+  });
+
+  it("변경 알림 전에 게시해도 붙여 넣은 멘션과 대상을 보낸다", async () => {
+    const { user } = renderEditor();
+
+    await user.type(screen.getByLabelText("제목"), "제목");
+    await user.click(
+      screen.getByRole("button", { name: "변경 알림 전 멘션 붙여넣기" }),
+    );
+    await user.click(screen.getByRole("button", { name: "게시" }));
+
+    await vi.waitFor(() =>
+      expect(createGroupPostWithAttachments).toHaveBeenCalledWith(
+        "group-id",
+        expect.objectContaining({
+          body: expect.stringContaining("[@붙여넣은 멤버](m:1)"),
+          mentions: [{ ordinal: 1, pubId: "member-2", name: "붙여넣은 멤버" }],
+        }),
+        [],
+        expect.anything(),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it("익명으로 쓰는 동안에는 붙여 넣은 멘션을 받지 않는다", async () => {
+    const { user } = renderEditor({ identities: ["anonymous"] });
+
+    await user.click(screen.getByRole("button", { name: "멘션 붙여넣기" }));
+
+    expect(screen.getByLabelText("Markdown 본문")).toHaveValue(
+      "@붙여넣은 멤버 ",
     );
   });
 

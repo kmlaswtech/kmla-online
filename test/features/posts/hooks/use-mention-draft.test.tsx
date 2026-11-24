@@ -128,4 +128,51 @@ describe("useMentionDraft", () => {
     });
     expect(assigned.map(({ pubId }) => pubId)).toEqual(["member-100"]);
   });
+
+  it("numbers pasted mentions around the ordinals the document still holds", () => {
+    const { result } = renderHook(() => useMentionDraft());
+    let assigned: { ordinal: number; pubId: string }[] = [];
+
+    act(() => {
+      assigned = result.current.adopt(
+        [
+          { pubId: "member-9", name: "멤버9" },
+          { pubId: "member-8", name: "멤버8" },
+        ],
+        [1, 3],
+      );
+    });
+
+    expect(assigned.map(({ pubId, ordinal }) => [pubId, ordinal])).toEqual([
+      ["member-9", 2],
+      ["member-8", 4],
+    ]);
+    // 복사할 때는 번호로 그 사람을 되찾는다. 초안이 모르는 번호는 아무도 아니다.
+    expect(result.current.targetOf(4)).toEqual({
+      pubId: "member-8",
+      name: "멤버8",
+    });
+    expect(result.current.targetOf(1)).toBeNull();
+  });
+
+  it("gives a pasted mention of someone already called the number they hold", () => {
+    const { result } = renderHook(() =>
+      useMentionDraft([
+        { ordinal: 3, pub_id: "member-3", name: "멤버3", avatar_path: null },
+      ]),
+    );
+    let assigned: { ordinal: number; pubId: string }[] = [];
+
+    act(() => {
+      assigned = result.current.adopt(
+        [{ pubId: "member-3", name: "멤버3" }],
+        [3],
+      );
+    });
+
+    expect(assigned.map(({ pubId, ordinal }) => [pubId, ordinal])).toEqual([
+      ["member-3", 3],
+    ]);
+    expect(result.current.entries).toHaveLength(1);
+  });
 });
