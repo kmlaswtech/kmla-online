@@ -27,6 +27,7 @@ import {
 import { resetFeed } from "~/features/feed";
 import { groupKeys } from "~/features/groups";
 import { notificationKeys } from "~/features/notifications";
+import { resetPokeSuggestions } from "~/features/pokes";
 import { clearPostEngagement, collapseAllPostBodies } from "~/features/posts";
 import { useAndroidBackWatcher } from "~/shared/hooks/use-android-back-watcher";
 import { useHideOnScroll } from "~/shared/hooks/use-hide-on-scroll";
@@ -128,6 +129,10 @@ export default function MainAppLayout() {
           ])
         : stale(groupKeys.all),
       stale(notificationKeys.badge()),
+      // 콕 찌르기 추천도 피드처럼 첫 페이지부터 다시 읽는다. 받은 목록은 아래 재검증이 읽는다.
+      location.pathname === "/pokes"
+        ? resetPokeSuggestions(queryClient).catch(() => undefined)
+        : null,
     ]);
     await revalidator.revalidate();
   };

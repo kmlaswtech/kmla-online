@@ -15,6 +15,7 @@ export const handle = defineAppChrome({
   header: "sticky",
   bottomNav: "none",
   contentWidth: "3xl",
+  pullToRefresh: true,
 });
 
 /** 받은 콕 찌르기와 추천 첫 페이지는 서로 기다리지 않는다. 찌른 뒤 재검증은 받은 목록만 다시 읽는다. */

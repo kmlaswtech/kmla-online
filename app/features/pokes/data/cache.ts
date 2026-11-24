@@ -1,4 +1,4 @@
-import { infiniteQueryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { listPokeSuggestions } from "~/features/pokes/data/queries";
 import type { PokeSuggestionCursor } from "~/features/pokes/model/types";
@@ -23,4 +23,12 @@ export function pokeSuggestionsQuery() {
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: SUGGESTION_STALE_TIME,
   });
+}
+
+/**
+ * 당겨서 새로고침은 쌓인 추천 페이지를 다시 읽지 않고 첫 페이지부터 새로 시작한다. 무효화는 쌓인 페이지를 전부 다시
+ * 읽는다.
+ */
+export function resetPokeSuggestions(queryClient: QueryClient) {
+  return queryClient.resetQueries({ queryKey: pokeKeys.suggestions() });
 }

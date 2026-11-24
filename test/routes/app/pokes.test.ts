@@ -17,7 +17,7 @@ vi.mock("~/features/pokes/data/queries", async (importOriginal) => ({
 }));
 
 import { resetQueryClientForTests } from "~/shared/lib/query-client";
-import { clientAction, clientLoader } from "~/routes/app/pokes";
+import { clientAction, clientLoader, handle } from "~/routes/app/pokes";
 
 function submit(fields: Record<string, string>) {
   return clientAction({
@@ -37,6 +37,10 @@ describe("pokes route", () => {
       people: [],
       nextCursor: null,
     });
+  });
+
+  it("allows touch pull-to-refresh", () => {
+    expect(handle.chrome.pullToRefresh).toBe(true);
   });
 
   it("loads received pokes and the first suggestion page together", async () => {
