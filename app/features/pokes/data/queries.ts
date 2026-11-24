@@ -19,14 +19,11 @@ interface PersonRow {
 }
 
 /** 생성 타입은 RPC 열을 모두 non-null로 적지만 아바타와 기수는 실제로 비어 온다. */
-async function toPeople<Row extends PersonRow>(
-  rows: Row[],
-): Promise<(Row & PokePerson)[]> {
+async function signAvatars(rows: PersonRow[]) {
   const avatarUrls = await createProfileMediaUrls(
     rows.map((row) => row.avatar_path),
   );
-  return rows.map((row) => ({
-    ...row,
+  return (row: PersonRow): PokePerson => ({
     profileId: row.profile_id,
     pubId: row.pub_id,
     name: row.name,
@@ -34,25 +31,15 @@ async function toPeople<Row extends PersonRow>(
       ? (avatarUrls.get(row.avatar_path) ?? null)
       : null,
     cohortLabel: formatCohort(row.cohort, row.is_returning_student),
-  }));
-}
-
-function pickPerson(person: PokePerson): PokePerson {
-  return {
-    profileId: person.profileId,
-    pubId: person.pubId,
-    name: person.name,
-    avatarUrl: person.avatarUrl,
-    cohortLabel: person.cohortLabel,
-  };
+  });
 }
 
 export async function listMyPokes(): Promise<ReceivedPoke[]> {
   const { data, error } = await getSupabase().rpc("list_my_pokes");
   if (error) throw error;
-  const people = await toPeople(data);
-  return people.map((row) => ({
-    ...pickPerson(row),
+  const toPerson = await signAvatars(data);
+  return data.map((row) => ({
+    ...toPerson(row),
     pokedAt: row.poked_at,
     pokeCount: row.poke_count,
     strongCount: row.strong_count,
@@ -64,7 +51,7 @@ export async function listMyPokes(): Promise<ReceivedPoke[]> {
 export async function listPokeSuggestions(): Promise<PokePerson[]> {
   const { data, error } = await getSupabase().rpc("list_poke_suggestions");
   if (error) throw error;
-  return (await toPeople(data)).map(pickPerson);
+  return data.map(await signAvatars(data));
 }
 
 export async function searchPokeTargets(query: string): Promise<PokeTarget[]> {
@@ -72,8 +59,8 @@ export async function searchPokeTargets(query: string): Promise<PokeTarget[]> {
     p_query: query,
   });
   if (error) throw error;
-  const people = await toPeople(data);
-  return people.map((row) => ({ ...pickPerson(row), waiting: row.waiting }));
+  const toPerson = await signAvatars(data);
+  return data.map((row) => ({ ...toPerson(row), waiting: row.waiting }));
 }
 
 export async function getPokeState(profileId: number): Promise<PokeState> {
@@ -81,9 +68,5 @@ export async function getPokeState(profileId: number): Promise<PokeState> {
     p_profile_id: profileId,
   });
   if (error) throw error;
-  const state = data[0];
-  return {
-    waiting: state?.waiting ?? false,
-    pokeCount: state?.poke_count ?? 0,
-  };
+  return { waiting: data[0]?.waiting ?? false };
 }

@@ -48,7 +48,6 @@ describe("pokes route", () => {
     mocks.pokeProfile.mockResolvedValue({
       poked: true,
       strong: true,
-      pokeCount: 3,
     });
 
     await expect(submit({ intent: "poke", profileId: "42" })).resolves.toEqual({

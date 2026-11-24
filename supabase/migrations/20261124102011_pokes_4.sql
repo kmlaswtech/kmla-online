@@ -138,6 +138,7 @@ declare
   high_id bigint;
   pair private.poke_pairs;
   is_strong boolean;
+  poke_title text;
   caller_profile public.profiles;
   notification_id uuid;
 begin
@@ -168,6 +169,7 @@ begin
   end if;
 
   is_strong := private.roll_strong_poke();
+  poke_title := case when is_strong then '회원님을 푹 찔렀습니다.' else '회원님을 콕 찔렀습니다.' end;
 
   insert into private.poke_pairs as existing (
     low_profile_id, high_profile_id, last_poker_profile_id, last_strong,
@@ -192,14 +194,14 @@ begin
     'poke:' || low_id::text || ':' || high_id::text || ':' || pair.poke_count::text,
     p_profile_id, 'poked', 'normal', 'poke', 'identified',
     caller_id, caller_profile.name, caller_profile.avatar_path,
-    case when is_strong then '회원님을 푹 찔렀습니다.' else '회원님을 콕 찔렀습니다.' end,
+    poke_title,
     null, null, null, null, null,
     'pokes:' || p_profile_id::text
   );
   -- 집계 경로의 emit_notification은 행위자만 바꾸고 문장은 그대로 둔다. 문장은 가장 최근 찌르기를 따른다.
   if notification_id is not null then
     update public.notifications
-    set title = case when is_strong then '회원님을 푹 찔렀습니다.' else '회원님을 콕 찔렀습니다.' end
+    set title = poke_title
     where id = notification_id;
     perform private.sync_poke_notification(p_profile_id);
   end if;

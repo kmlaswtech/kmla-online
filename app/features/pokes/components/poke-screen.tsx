@@ -82,8 +82,11 @@ export function PokeScreen({
   // 없으면 건너뛴다. loader에서 읽음 처리하면 재검증마다 효과 표시와 읽음이 엇갈린다.
   const [seenPokes, setSeenPokes] = useState<ReadonlySet<string> | null>(null);
   const [readRequest, setReadRequest] = useState(0);
-  const [burstKey, setBurstKey] = useState<number | null>(null);
-  const [burstLabel, setBurstLabel] = useState("");
+  const [burst, setBurst] = useState<{ key: number; label: string } | null>(
+    null,
+  );
+  const showBurst = (label: string) =>
+    setBurst((current) => ({ key: (current?.key ?? 0) + 1, label }));
   const receivedKeys = received.map(
     (poke) => `${poke.profileId}:${poke.pokedAt}`,
   );
@@ -95,8 +98,7 @@ export function PokeScreen({
     setSeenPokes(new Set([...(seenPokes ?? []), ...receivedKeys]));
     setReadRequest((count) => count + 1);
     if (strong) {
-      setBurstLabel(`${strong.name}님이 회원님을 푹 찔렀습니다!`);
-      setBurstKey((key) => (key ?? 0) + 1);
+      showBurst(`${strong.name}님이 회원님을 푹 찔렀습니다!`);
     }
   }
 
@@ -117,8 +119,7 @@ export function PokeScreen({
     setPoked((current) => new Set(current).add(data.profileId));
     void queryClient.invalidateQueries({ queryKey: pokeKeys.all });
     if (data.strong) {
-      setBurstLabel("푹 찔렀습니다!");
-      setBurstKey((key) => (key ?? 0) + 1);
+      showBurst("푹 찔렀습니다!");
     }
   }
 
@@ -175,7 +176,10 @@ export function PokeScreen({
         </PokeSection>
       ) : null}
 
-      <StrongPokeBurst playKey={burstKey} label={burstLabel} />
+      <StrongPokeBurst
+        playKey={burst?.key ?? null}
+        label={burst?.label ?? ""}
+      />
     </div>
   );
 }

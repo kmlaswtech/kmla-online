@@ -25,10 +25,8 @@ export interface PokeTarget extends PokePerson {
 export interface PokeResult {
   poked: boolean;
   strong: boolean;
-  pokeCount: number;
 }
 
 export interface PokeState {
   waiting: boolean;
-  pokeCount: number;
 }

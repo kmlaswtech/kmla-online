@@ -9,11 +9,7 @@ export async function pokeProfile(profileId: number): Promise<PokeResult> {
   if (error) throw error;
   const result = data[0];
   if (!result) throw new Error("Poke result is unavailable");
-  return {
-    poked: result.poked,
-    strong: result.strong,
-    pokeCount: result.poke_count,
-  };
+  return { poked: result.poked, strong: result.strong };
 }
 
 /** 콕 찌르기 화면이 뜰 때 한 번. 알림을 읽고 보여 준 푹 찌르기 효과를 지운다. */

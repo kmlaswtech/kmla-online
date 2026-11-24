@@ -38,7 +38,6 @@ export function PokeButton({
       const result = await pokeProfile(profileId);
       queryClient.setQueryData<PokeState>(pokeKeys.state(profileId), {
         waiting: true,
-        pokeCount: result.pokeCount,
       });
       if (result.poked) jab();
       if (result.strong) setBurstKey(Date.now());
