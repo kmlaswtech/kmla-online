@@ -4,6 +4,7 @@ import {
   CalendarDaysIcon,
   ExternalLinkIcon,
   GiftIcon,
+  LinkIcon,
   MegaphoneIcon,
   SettingsIcon,
   ShieldCheckIcon,
@@ -72,6 +73,7 @@ const shortcuts: Shortcut[] = [
     icon: GiftIcon,
     for: ["student"],
   },
+  { to: "/menu/links", label: "링크 모음", icon: LinkIcon },
 ];
 
 const tileClassName =

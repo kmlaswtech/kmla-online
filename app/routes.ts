@@ -34,6 +34,7 @@ export default [
       route("menu/gongang", "routes/app/menu/gongang.tsx"),
       route("menu/gongang/manage", "routes/app/menu/gongang-manage.tsx"),
       route("menu/karaoke", "routes/app/menu/karaoke.tsx"),
+      route("menu/links", "routes/app/menu/links.tsx"),
       route("menu/meal", "routes/app/menu/meal.tsx"),
       route("menu/notices", "routes/app/menu/notices.tsx"),
       route("menu/notices/:postId", "routes/app/menu/notice-detail.tsx"),
