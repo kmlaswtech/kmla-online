@@ -38,6 +38,7 @@ import { groupKeys } from "~/features/groups/data/cache";
 import type { GroupDetail } from "~/features/groups/model/types";
 import { NotificationSync } from "~/features/notifications/components/notification-sync";
 import { notificationKeys } from "~/features/notifications/data/cache";
+import { pokeKeys } from "~/features/pokes/data/cache";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -157,6 +158,36 @@ describe("NotificationSync", () => {
     onChange();
 
     await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledOnce());
+  });
+
+  it("refreshes the open poke screen when a poke notification arrives", async () => {
+    renderSync("/pokes");
+
+    await waitFor(() =>
+      expect(mocks.subscribeToNotifications).toHaveBeenCalledOnce(),
+    );
+    const onChange = mocks.subscribeToNotifications.mock
+      .calls[0][1] as () => void;
+    onChange();
+
+    await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledOnce());
+  });
+
+  it("refreshes a poke button on a profile when the other side pokes back", async () => {
+    const { invalidateQueries } = renderSync("/profile/kim");
+
+    await waitFor(() =>
+      expect(mocks.subscribeToNotifications).toHaveBeenCalledOnce(),
+    );
+    const onChange = mocks.subscribeToNotifications.mock
+      .calls[0][1] as () => void;
+    onChange();
+
+    await waitFor(() =>
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: pokeKeys.states(),
+      }),
+    );
   });
 
   it("refreshes the badge once for a burst of notification events", async () => {

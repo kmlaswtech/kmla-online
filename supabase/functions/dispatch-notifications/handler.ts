@@ -18,6 +18,7 @@ export interface Delivery {
     | "account"
     | "school"
     | "moderation"
+    | "poke"
     | null;
   grouping_key: string | null;
   title: string;

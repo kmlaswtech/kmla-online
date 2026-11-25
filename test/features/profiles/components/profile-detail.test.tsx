@@ -55,6 +55,11 @@ describe("ProfileDetail", () => {
       "href",
       "/profile/hanbyeol-25/edit",
     );
+    // 콕 찌르기 화면은 메뉴가 아니라 내 프로필에서 들어간다(기능 명세 §12.5).
+    expect(screen.getByRole("link", { name: "콕 찌르기" })).toHaveAttribute(
+      "href",
+      "/pokes",
+    );
     expect(screen.getByRole("link", { name: "글쓰기…" })).toHaveAttribute(
       "href",
       "/profile/hanbyeol-25/posts/new",

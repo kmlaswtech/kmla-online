@@ -23,6 +23,7 @@ const preferences = {
   school_push_enabled: true,
   timeline_push_enabled: true,
   message_preview_hidden: false,
+  poke_push_enabled: true,
 };
 
 describe("NotificationSettings", () => {
@@ -302,7 +303,7 @@ describe("NotificationSettings", () => {
 
     expect(
       screen.getByText(
-        "이 기기로 받는 알림 — 댓글 · 답글, 그룹 운영 소식, 계정 · 권한, 학교 기능",
+        "이 기기로 받는 알림 — 댓글 · 답글, 그룹 운영 소식, 계정 · 권한, 학교 기능, 콕 찌르기",
       ),
     ).toBeInTheDocument();
     expect(
@@ -334,6 +335,7 @@ describe("NotificationSettings", () => {
           school_push_enabled: false,
           timeline_push_enabled: false,
           message_preview_hidden: false,
+          poke_push_enabled: false,
         }}
         pushSupport={{
           state: "available",
