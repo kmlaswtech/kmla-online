@@ -68,7 +68,7 @@ test("모바일 메뉴는 도구와 설정·프로필 진입을 분리한다", a
     page.getByRole("heading", { name: "메뉴", exact: true }),
   ).toBeVisible();
   const tools = page.getByRole("navigation", { name: "학교생활 기능" });
-  await expect(tools.getByRole("link")).toHaveCount(6);
+  await expect(tools.getByRole("link")).toHaveCount(7);
   await expect(tools.getByRole("link", { name: "기부물품" })).toHaveAttribute(
     "href",
     "/menu/donations",
@@ -132,16 +132,16 @@ test("메뉴는 모바일과 데스크톱에서 구역별로 정돈되고 가로
   const tools = page.getByRole("navigation", { name: "학교생활 기능" });
   const sites = page.getByRole("navigation", { name: "학교 사이트" });
   for (const [width, toolRows, siteRows] of [
-    [320, 3, 2],
-    [390, 3, 2],
-    [767, 3, 2],
+    [320, 4, 2],
+    [390, 4, 2],
+    [767, 4, 2],
     [768, 2, 1],
     [820, 2, 1],
     [1280, 2, 1],
     [1920, 2, 1],
   ] as const) {
     await page.setViewportSize({ width, height: 800 });
-    await expect(tools.getByRole("link")).toHaveCount(6);
+    await expect(tools.getByRole("link")).toHaveCount(7);
     await expect(sites.getByRole("link")).toHaveCount(3);
     await expect(
       page
@@ -221,7 +221,6 @@ test("이전 예약·바로가기 주소는 리다이렉트 없이 없는 페이
     "/util/gongang",
     "/util/gongang/manage",
     "/util/karaoke",
-    "/menu/links",
   ]) {
     await page.goto(path);
     await expect(
