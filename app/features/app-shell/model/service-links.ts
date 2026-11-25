@@ -10,14 +10,10 @@ interface ServiceLink {
 
 export const serviceLinks: ServiceLink[] = [
   {
-    href: "https://wiki.kmla.online/",
-    label: "큼온 위키",
-    icon: BookOpenIcon,
-  },
-  {
     href: "https://minjok.net/paper/",
     label: "KMLA Research Hub",
     icon: FlaskConicalIcon,
   },
+  { label: "큼온 위키", icon: BookOpenIcon },
   { label: "KMLA News", icon: NewspaperIcon },
 ];
