@@ -18,6 +18,7 @@ import {
   useAppShell,
   type ShellData,
 } from "~/features/app-shell";
+import { SchoolLifeLinksTile } from "~/features/app-shell/components/school-life-links";
 import { schoolLinks } from "~/features/app-shell/model/school-links";
 import { UserAvatar } from "~/shared/components/user-avatar";
 import { cn } from "~/shared/lib/utils";
@@ -174,7 +175,7 @@ export default function MenuPage() {
           </h2>
           <nav
             aria-label="학교 사이트"
-            className="grid grid-cols-2 gap-3 md:grid-cols-3"
+            className="grid grid-cols-2 gap-3 lg:grid-cols-4"
           >
             {schoolLinks.map(({ href, label, icon: Icon }) => (
               <a
@@ -201,6 +202,12 @@ export default function MenuPage() {
                 />
               </a>
             ))}
+            <SchoolLifeLinksTile
+              className={cn(
+                tileClassName,
+                "flex min-h-14 min-w-0 items-center gap-3 px-3 py-3",
+              )}
+            />
           </nav>
         </section>
       </div>
