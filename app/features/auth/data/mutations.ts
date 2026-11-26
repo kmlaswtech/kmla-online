@@ -1,6 +1,9 @@
 import { getSupabase } from "~/shared/supabase/client";
 import { clearSignupDraft } from "~/features/auth/storage/pending-signup";
-import type { ProfileFormValues } from "~/features/auth/model/types";
+import type {
+  OAuthDecision,
+  ProfileFormValues,
+} from "~/features/auth/model/types";
 import {
   disconnectWebPushForLogout,
   unsubscribeWebPushLocally,
@@ -200,4 +203,22 @@ export async function withdrawAccount(password: string): Promise<void> {
     unsubscribeWebPushLocally(),
     supabase.auth.signOut({ scope: "local" }),
   ]);
+}
+
+/**
+ * 연계 서비스 로그인 요청에 답하고, 연계 서비스로 돌아갈 주소(허용이면 code, 거부면
+ * `access_denied`가 붙는다)를 돌려준다. 이동은 route가 맡는다.
+ */
+export async function decideOAuthAuthorization(
+  authorizationId: string,
+  decision: OAuthDecision,
+): Promise<string> {
+  const oauth = getSupabase().auth.oauth;
+  const options = { skipBrowserRedirect: true };
+  const { data, error } =
+    decision === "approve"
+      ? await oauth.approveAuthorization(authorizationId, options)
+      : await oauth.denyAuthorization(authorizationId, options);
+  if (error) throw error;
+  return data.redirect_url;
 }

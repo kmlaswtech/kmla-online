@@ -11,6 +11,7 @@ import type { GroupDetail } from "~/features/groups/model/types";
 import { notificationKeys } from "~/features/notifications/data/cache";
 import { subscribeToNotifications } from "~/features/notifications/data/subscriptions";
 import { resyncWebPushSubscription } from "~/features/notifications/data/push";
+import { pokeKeys } from "~/features/pokes/data/cache";
 
 const GROUP_ROUTE =
   /^\/groups\/(?!(?:create|discover|member-page|report-page)(?:\/|$))([^/]+)(?:\/|$)/;
@@ -103,8 +104,11 @@ export function NotificationSync({ profileId }: { profileId: number }) {
 
   const sync = useEffectEvent((source: "notification" | "focus") => {
     void queryClient.invalidateQueries({ queryKey: notificationKeys.badge() });
+    // 상대가 되찌르면 콕 찌르기 알림이 바뀐다. 떠 있는 프로필의 `콕 찔렀어요` 버튼이 이 신호로 다시 읽는다.
+    void queryClient.invalidateQueries({ queryKey: pokeKeys.states() });
 
-    if (location.pathname === "/noti") {
+    // 콕 찌르기 화면의 받은 목록은 따로 구독하지 않는다. 찔리면 콕 찌르기 알림이 바뀌므로 그 신호로 다시 읽는다.
+    if (location.pathname === "/noti" || location.pathname === "/pokes") {
       void revalidator.revalidate();
       return;
     }

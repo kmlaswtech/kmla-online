@@ -66,6 +66,7 @@ describe("notification settings route", () => {
           group_push_enabled: "true",
           school_push_enabled: "false",
           timeline_push_enabled: "true",
+          poke_push_enabled: "false",
         }),
       }),
     } as never);
@@ -76,6 +77,7 @@ describe("notification settings route", () => {
       group_push_enabled: true,
       school_push_enabled: false,
       timeline_push_enabled: true,
+      poke_push_enabled: false,
     });
   });
 

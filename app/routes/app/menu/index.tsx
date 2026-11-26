@@ -2,8 +2,8 @@ import {
   CakeIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
-  ExternalLinkIcon,
   GiftIcon,
+  LinkIcon,
   MegaphoneIcon,
   SettingsIcon,
   ShieldCheckIcon,
@@ -18,7 +18,6 @@ import {
   useAppShell,
   type ShellData,
 } from "~/features/app-shell";
-import { schoolLinks } from "~/features/app-shell/model/school-links";
 import { UserAvatar } from "~/shared/components/user-avatar";
 import { cn } from "~/shared/lib/utils";
 import { buttonVariants } from "~/shared/ui/button";
@@ -72,6 +71,7 @@ const shortcuts: Shortcut[] = [
     icon: GiftIcon,
     for: ["student"],
   },
+  { to: "/menu/links", label: "링크 모음", icon: LinkIcon },
 ];
 
 const tileClassName =
@@ -159,48 +159,6 @@ export default function MenuPage() {
                   </span>
                 </Link>
               ))}
-          </nav>
-        </section>
-
-        <section
-          className="flex flex-col gap-3"
-          aria-labelledby="school-sites-title"
-        >
-          <h2
-            id="school-sites-title"
-            className="text-sm font-semibold text-muted-foreground"
-          >
-            학교 사이트
-          </h2>
-          <nav
-            aria-label="학교 사이트"
-            className="grid grid-cols-2 gap-3 md:grid-cols-3"
-          >
-            {schoolLinks.map(({ href, label, icon: Icon }) => (
-              <a
-                key={href}
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`${label} (새 탭)`}
-                className={cn(
-                  tileClassName,
-                  "flex min-h-14 min-w-0 items-center gap-3 px-3 py-3",
-                )}
-              >
-                <Icon
-                  className="size-5 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1 text-sm font-medium break-keep">
-                  {label}
-                </span>
-                <ExternalLinkIcon
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              </a>
-            ))}
           </nav>
         </section>
       </div>

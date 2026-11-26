@@ -11,7 +11,6 @@ import {
   searchMessages,
   type MessageSearchResult,
 } from "~/features/messaging/data/queries";
-import { searchExcerpt } from "~/features/messaging/model/message-search";
 import {
   formatMessageDay,
   formatMessageTime,
@@ -20,6 +19,7 @@ import type {
   MessageCursor,
   MessageParticipant,
 } from "~/features/messaging/model/types";
+import { SearchExcerpt } from "~/shared/components/search-excerpt";
 import { Button } from "~/shared/ui/button";
 import { Input } from "~/shared/ui/input";
 import { Spinner } from "~/shared/ui/spinner";
@@ -175,7 +175,7 @@ export function MessageSearchPanel({
                       {formatMessageTime(result.sentAt)}
                     </time>
                   </span>
-                  <ResultExcerpt body={result.body} term={state.query} />
+                  <SearchExcerpt text={result.body} term={state.query} />
                 </button>
               </li>
             ))}
@@ -203,21 +203,5 @@ export function MessageSearchPanel({
         ) : null}
       </div>
     </div>
-  );
-}
-
-/** 결과 본문 두 줄. 찾은 말을 굵게 표시하고, 뒤쪽에서 찾았으면 앞을 줄여 두 줄 안에 보이게 한다. */
-function ResultExcerpt({ body, term }: { body: string; term: string }) {
-  const { before, match, after } = searchExcerpt(body, term);
-  return (
-    <span className="line-clamp-2 text-sm [overflow-wrap:anywhere] break-keep">
-      {before}
-      {match ? (
-        <mark className="rounded-sm bg-primary/15 font-semibold text-foreground">
-          {match}
-        </mark>
-      ) : null}
-      {after}
-    </span>
   );
 }

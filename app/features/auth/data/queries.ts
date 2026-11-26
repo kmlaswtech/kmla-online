@@ -5,6 +5,7 @@ import type {
   AuthState,
   MyApplicationRejection,
   MySuspension,
+  OAuthAuthorization,
 } from "~/features/auth/model/types";
 import type { OwnedGroup } from "~/features/auth/model/withdrawal";
 
@@ -108,4 +109,42 @@ export async function listMyOwnedGroups(): Promise<OwnedGroup[]> {
     .eq("role", "owner");
   if (error) throw error;
   return data.map(({ groups }) => groups);
+}
+
+/**
+ * 연계 서비스의 로그인 요청(OAuth 2.1 authorization). 이미 동의한 사용자에게는 인증 서버가
+ * 상세 대신 돌아갈 주소만 준다. 없거나 만료된 요청은 인증 서버가 4xx로 거절하므로 `missing`이다.
+ * 401은 요청이 아니라 세션이 죽은 것이라 저장소 세션을 지우고 `signed-out`이다. 지우지 않으면
+ * 로그인 화면이 남은 세션을 보고 동의 화면으로 되돌려 둘이 서로를 무한히 보낸다.
+ * 403은 다른 계정에 묶인 요청일 수 있어 다시 로그인해도 풀리지 않으므로 `missing`이다.
+ * 429는 잠시 뒤 다시 하면 되는 요청이라 만료로 읽지 않고 던진다.
+ */
+export async function loadOAuthAuthorization(
+  authorizationId: string,
+): Promise<OAuthAuthorization> {
+  const { data, error } =
+    await getSupabase().auth.oauth.getAuthorizationDetails(authorizationId);
+  if (error) {
+    if (isAuthApiError(error)) {
+      if (error.status === 401) {
+        await forgetSession();
+        return { kind: "signed-out" };
+      }
+      if (error.status >= 400 && error.status < 500 && error.status !== 429) {
+        return { kind: "missing" };
+      }
+    }
+    throw error;
+  }
+  if (!("authorization_id" in data)) {
+    return { kind: "redirect", url: data.redirect_url };
+  }
+  return { kind: "consent", clientName: data.client.name };
+}
+
+/** 연계 서비스가 받는 판정과 같다(`get_external_identity`, accounts §4.8). */
+export async function isAcceptedMember(): Promise<boolean> {
+  const { data, error } = await getSupabase().rpc("get_external_identity");
+  if (error) throw error;
+  return data.length > 0;
 }

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(52);
 
 -- 탈퇴할 승인 학생을 새로 만든다. 홍길동(…001)은 그 사람과 대화하고 알림을 받은 다른 회원이다.
 insert into auth.users (
@@ -104,6 +104,20 @@ select throws_ok(
 );
 reset role;
 update public.profiles set role = 'member' where id = current_setting('test.me')::bigint;
+
+-- 나와 관리자가 홍길동을 찌른다. 탈퇴하면 홍길동의 콕 찌르기 알림 인원에서 나만 빠져야 한다.
+select pg_temp.act_as_me(interval '1 minute');
+set local role authenticated;
+select * from public.poke_profile(current_setting('test.hong')::bigint);
+reset role;
+select set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000098"}', true);
+set local role authenticated;
+select * from public.poke_profile(current_setting('test.hong')::bigint);
+reset role;
+select set_config('test.hong_poke_count', (
+  select actor_count::text from public.notifications
+  where recipient_profile_id = current_setting('test.hong')::bigint and kind = 'poked'
+), true);
 
 -- 탈퇴 전 상태. 정지 중이어도 탈퇴는 막지 않는다.
 insert into private.profile_suspensions (profile_id, reason, expires_at)
@@ -264,6 +278,12 @@ select is((select count(*)::int from public.stories where profile_id = current_s
 select is((select count(*)::int from public.utility_reservations where profile_id = current_setting('test.me')::bigint), 0, 'reservations, past ones included, are deleted');
 select is((select count(*)::int from private.group_post_reports where reporter_profile_id = current_setting('test.me')::bigint), 0, 'reports filed by the account are deleted');
 select is((select count(*)::int from private.profile_suspensions where profile_id = current_setting('test.me')::bigint), 0, 'suspension records are deleted');
+select is(
+  (select actor_count from public.notifications
+    where recipient_profile_id = current_setting('test.hong')::bigint and kind = 'poked'),
+  current_setting('test.hong_poke_count')::integer - 1,
+  'a withdrawn poker leaves the poked member''s notification count'
+);
 select is((select count(*)::int from private.group_anonymous_activity_restrictions where profile_id = current_setting('test.me')::bigint), 0, 'anonymous activity restrictions are deleted');
 select is((select count(*)::int from public.profile_media_objects where profile_id = current_setting('test.me')::bigint), 0, 'profile media rows are deleted');
 select is(

@@ -206,6 +206,7 @@ export type Database = {
           left_by_self: boolean
           mentions_only: boolean
           muted_until: string | null
+          pinned_at: string | null
           profile_id: number
         }
         ComputedFields: never
@@ -220,6 +221,7 @@ export type Database = {
           left_by_self?: boolean
           mentions_only?: boolean
           muted_until?: string | null
+          pinned_at?: string | null
           profile_id: number
         }
         Update: {
@@ -233,6 +235,7 @@ export type Database = {
           left_by_self?: boolean
           mentions_only?: boolean
           muted_until?: string | null
+          pinned_at?: string | null
           profile_id?: number
         }
         Relationships: [
@@ -714,6 +717,7 @@ export type Database = {
           content_push_enabled: boolean
           group_push_enabled: boolean
           message_preview_hidden: boolean
+          poke_push_enabled: boolean
           profile_id: number
           school_push_enabled: boolean
           timeline_push_enabled: boolean
@@ -725,6 +729,7 @@ export type Database = {
           content_push_enabled?: boolean
           group_push_enabled?: boolean
           message_preview_hidden?: boolean
+          poke_push_enabled?: boolean
           profile_id: number
           school_push_enabled?: boolean
           timeline_push_enabled?: boolean
@@ -735,6 +740,7 @@ export type Database = {
           content_push_enabled?: boolean
           group_push_enabled?: boolean
           message_preview_hidden?: boolean
+          poke_push_enabled?: boolean
           profile_id?: number
           school_push_enabled?: boolean
           timeline_push_enabled?: boolean
@@ -2347,6 +2353,12 @@ export type Database = {
           media_count: number
         }[]
       }
+      get_external_identity: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          profile_id: number
+        }[]
+      }
       get_group_invite: {
         Args: { p_group_id: string }
         Returns: {
@@ -2445,6 +2457,7 @@ export type Database = {
           content_push_enabled: boolean
           group_push_enabled: boolean
           message_preview_hidden: boolean
+          poke_push_enabled: boolean
           school_push_enabled: boolean
           timeline_push_enabled: boolean
         }[]
@@ -2514,6 +2527,13 @@ export type Database = {
         Returns: {
           gone: boolean
           subscribed: boolean
+        }[]
+      }
+      get_poke_state: {
+        Args: { p_profile_id: number }
+        Returns: {
+          poke_count: number
+          waiting: boolean
         }[]
       }
       get_profile_post: {
@@ -2665,6 +2685,7 @@ export type Database = {
           name: string
           notification_level: Database["public"]["Enums"]["conversation_notification_level"]
           participants: Json
+          pinned: boolean
           type: Database["public"]["Enums"]["conversation_type"]
           unread_count: number
           viewer_id: number
@@ -2961,6 +2982,22 @@ export type Database = {
           title: string
         }[]
       }
+      list_my_pokes: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avatar_path: string
+          cohort: number
+          is_returning_student: boolean
+          last_strong: boolean
+          name: string
+          poke_count: number
+          poked_at: string
+          profile_id: number
+          pub_id: string
+          strong_count: number
+          strong_effect_pending: boolean
+        }[]
+      }
       list_pinned_messages: {
         Args: { p_conversation_id: string }
         Returns: {
@@ -2986,6 +3023,18 @@ export type Database = {
           system_name: string
           system_profile_ids: number[]
           unread_member_count: number
+        }[]
+      }
+      list_poke_suggestions: {
+        Args: { p_after_id?: number; p_after_score?: number; p_limit?: number }
+        Returns: {
+          avatar_path: string
+          cohort: number
+          is_returning_student: boolean
+          name: string
+          profile_id: number
+          pub_id: string
+          sort_score: number
         }[]
       }
       list_post_attachments: {
@@ -3176,6 +3225,10 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: boolean
       }
+      mark_my_pokes_seen: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       mark_post_opened: {
         Args: { p_post_id: string }
         Returns: {
@@ -3206,9 +3259,19 @@ export type Database = {
         Args: { p_within_seconds?: number }
         Returns: string
       }
+      oauth_access_token_hook: { Args: { event: Json }; Returns: Json }
       open_direct_conversation: {
         Args: { p_profile_id: number }
         Returns: string
+      }
+      poke_profile: {
+        Args: { p_profile_id: number }
+        Returns: {
+          poke_count: number
+          poked: boolean
+          strong: boolean
+          strong_count: number
+        }[]
       }
       prepare_comment_image: {
         Args: {
@@ -3489,6 +3552,24 @@ export type Database = {
           title: string
         }[]
       }
+      search_member_group_posts: {
+        Args: {
+          p_cursor_post_id?: string
+          p_cursor_published_at?: string
+          p_limit?: number
+          p_query: string
+        }
+        Returns: {
+          author_name: string
+          body: string
+          group_name: string
+          group_slug: string
+          is_staff: boolean
+          post_id: string
+          published_at: string
+          title: string
+        }[]
+      }
       search_message_recipients: {
         Args: { p_query: string }
         Returns: {
@@ -3563,6 +3644,10 @@ export type Database = {
           p_conversation_id: string
           p_level: Database["public"]["Enums"]["conversation_notification_level"]
         }
+        Returns: undefined
+      }
+      set_conversation_pinned: {
+        Args: { p_conversation_id: string; p_pinned: boolean }
         Returns: undefined
       }
       set_group_post_pinned: {
@@ -3729,6 +3814,7 @@ export type Database = {
           p_account_push_enabled: boolean
           p_content_push_enabled: boolean
           p_group_push_enabled: boolean
+          p_poke_push_enabled?: boolean
           p_school_push_enabled: boolean
           p_timeline_push_enabled: boolean
         }
@@ -3852,7 +3938,13 @@ export type Database = {
       notification_actor_identity:
         "identified" | "anonymous" | "staff" | "system"
       notification_category:
-        "content" | "timeline" | "group" | "account" | "school" | "moderation"
+        | "content"
+        | "timeline"
+        | "group"
+        | "account"
+        | "school"
+        | "moderation"
+        | "poke"
       notification_importance: "low" | "normal" | "high"
       notification_kind:
         | "post_commented"
@@ -3885,6 +3977,7 @@ export type Database = {
         | "gongang_preempted"
         | "post_mentioned"
         | "comment_mentioned"
+        | "poked"
       post_attachment_status: "pending" | "ready" | "deleted"
       post_identity: "identified" | "anonymous" | "staff"
       post_kind: "group" | "profile"
@@ -4059,6 +4152,7 @@ export const Constants = {
         "account",
         "school",
         "moderation",
+        "poke",
       ],
       notification_importance: ["low", "normal", "high"],
       notification_kind: [
@@ -4092,6 +4186,7 @@ export const Constants = {
         "gongang_preempted",
         "post_mentioned",
         "comment_mentioned",
+        "poked",
       ],
       post_attachment_status: ["pending", "ready", "deleted"],
       post_identity: ["identified", "anonymous", "staff"],

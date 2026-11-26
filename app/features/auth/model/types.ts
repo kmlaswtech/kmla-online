@@ -40,3 +40,12 @@ export type FieldErrors = Partial<
     string
   >
 >;
+
+/** 연계 서비스 로그인 요청의 처리 갈래(accounts §4.9). */
+export type OAuthAuthorization =
+  | { kind: "consent"; clientName: string }
+  | { kind: "redirect"; url: string }
+  | { kind: "missing" }
+  | { kind: "signed-out" };
+
+export type OAuthDecision = "approve" | "deny";

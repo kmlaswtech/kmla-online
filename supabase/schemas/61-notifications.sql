@@ -4,7 +4,7 @@ create type public.notification_importance as enum ('low', 'normal', 'high');
 alter type public.notification_importance owner to postgres;
 
 create type public.notification_category as enum (
-  'content', 'timeline', 'group', 'account', 'school', 'moderation'
+  'content', 'timeline', 'group', 'account', 'school', 'moderation', 'poke'
 );
 alter type public.notification_category owner to postgres;
 
@@ -43,7 +43,8 @@ create type public.notification_kind as enum (
   'gongang_manager_revoked',
   'gongang_preempted',
   'post_mentioned',
-  'comment_mentioned'
+  'comment_mentioned',
+  'poked'
 );
 alter type public.notification_kind owner to postgres;
 
@@ -129,6 +130,8 @@ create table public.notification_preferences (
   group_push_enabled boolean not null default true,
   account_push_enabled boolean not null default true,
   school_push_enabled boolean not null default true,
+  -- 콕 찌르기(기능 명세 §14.14).
+  poke_push_enabled boolean not null default true,
   -- `알림에 메시지 내용 가리기`(기능 명세 §13.17). 켜면 메시지 Push에 본문 대신 안내 문구를 쓴다.
   message_preview_hidden boolean not null default false,
   updated_at timestamptz not null default now()
@@ -276,6 +279,7 @@ as $$
         when 'group' then coalesce(preference.group_push_enabled, true)
         when 'account' then coalesce(preference.account_push_enabled, true)
         when 'school' then coalesce(preference.school_push_enabled, true)
+        when 'poke' then coalesce(preference.poke_push_enabled, true)
         when 'moderation' then true
       end
     )
@@ -803,7 +807,8 @@ returns table (
   group_push_enabled boolean,
   account_push_enabled boolean,
   school_push_enabled boolean,
-  message_preview_hidden boolean
+  message_preview_hidden boolean,
+  poke_push_enabled boolean
 )
 language plpgsql security definer
 set search_path = ''
@@ -820,7 +825,8 @@ begin
   return query
   select preference.content_push_enabled, preference.timeline_push_enabled,
     preference.group_push_enabled, preference.account_push_enabled,
-    preference.school_push_enabled, preference.message_preview_hidden
+    preference.school_push_enabled, preference.message_preview_hidden,
+    preference.poke_push_enabled
   from public.notification_preferences as preference
   where preference.profile_id = caller_profile_id;
 end;
@@ -832,7 +838,9 @@ create or replace function public.update_my_notification_preferences(
   p_timeline_push_enabled boolean,
   p_group_push_enabled boolean,
   p_account_push_enabled boolean,
-  p_school_push_enabled boolean
+  p_school_push_enabled boolean,
+  -- 콕 찌르기 스위치 이전의 앱은 이 인자를 보내지 않는다. 비어 있으면 저장된 값을 둔다.
+  p_poke_push_enabled boolean default null
 ) returns void
 language plpgsql security definer
 set search_path = ''
@@ -851,20 +859,22 @@ begin
   end if;
   insert into public.notification_preferences as preference (
     profile_id, content_push_enabled, timeline_push_enabled,
-    group_push_enabled, account_push_enabled, school_push_enabled
+    group_push_enabled, account_push_enabled, school_push_enabled, poke_push_enabled
   ) values (
     caller_profile_id, p_content_push_enabled, p_timeline_push_enabled,
-    p_group_push_enabled, p_account_push_enabled, p_school_push_enabled
+    p_group_push_enabled, p_account_push_enabled, p_school_push_enabled,
+    coalesce(p_poke_push_enabled, true)
   ) on conflict (profile_id) do update set
     content_push_enabled = excluded.content_push_enabled,
     timeline_push_enabled = excluded.timeline_push_enabled,
     group_push_enabled = excluded.group_push_enabled,
     account_push_enabled = excluded.account_push_enabled,
     school_push_enabled = excluded.school_push_enabled,
+    poke_push_enabled = coalesce(p_poke_push_enabled, preference.poke_push_enabled),
     updated_at = now();
 end;
 $$;
-alter function public.update_my_notification_preferences(boolean, boolean, boolean, boolean, boolean) owner to postgres;
+alter function public.update_my_notification_preferences(boolean, boolean, boolean, boolean, boolean, boolean) owner to postgres;
 
 -- `알림에 메시지 내용 가리기`. 계정의 모든 기기에 적용한다(기능 명세 §13.17).
 create or replace function public.set_my_message_preview_hidden(p_hidden boolean)
@@ -1061,6 +1071,8 @@ begin
     if profile_pub_id is not null then destination := '/profile/' || profile_pub_id; end if;
   elsif target.kind = 'gongang_preempted' then
     destination := '/menu/gongang';
+  elsif target.kind = 'poked' then
+    destination := '/pokes';
   end if;
 
   update public.notifications set read_at = coalesce(read_at, now()) where id = target.id;
@@ -1110,6 +1122,7 @@ as $$
         when source.kind in ('post_moderated', 'comment_moderated', 'anonymous_activity_restricted')
           then '운영 조치'
         when source.kind = 'gongang_preempted' then '공강 예약'
+        when source.kind = 'poked' then '콕 찌르기'
         when source.group_name is not null then source.group_name
         else 'KMLA Online'
       end as title,
@@ -1138,6 +1151,12 @@ as $$
           else '내 그룹 역할이 변경되었습니다.'
         end
         when 'official_group_joined' then '공식 그룹에 자동으로 가입되었습니다.'
+        -- `title`은 `회원님을 콕(푹) 찔렀습니다.`다. 이름 뒤에 `님`을 붙여 문장으로 잇는다.
+        when 'poked' then coalesce(source.actor_display_name, '탈퇴한 사용자') || '님'
+          || case
+            when source.actor_count > 1 then ' 외 ' || (source.actor_count - 1)::text || '명이 '
+            else '이 '
+          end || source.title
         when 'anonymous_activity_restricted' then
           coalesce(source.group_name || ' 그룹에서 ', '그룹에서 ') || '익명 활동이 제한되었습니다.'
         when 'account_approved' then '가입이 승인되었습니다. 이제 KMLA Online을 이용할 수 있습니다.'
@@ -2342,8 +2361,8 @@ revoke all on function public.get_my_recent_unread_notification_count() from pub
 grant execute on function public.get_my_recent_unread_notification_count() to authenticated;
 revoke all on function public.get_my_notification_preferences() from public;
 grant execute on function public.get_my_notification_preferences() to authenticated;
-revoke all on function public.update_my_notification_preferences(boolean, boolean, boolean, boolean, boolean) from public;
-grant execute on function public.update_my_notification_preferences(boolean, boolean, boolean, boolean, boolean) to authenticated;
+revoke all on function public.update_my_notification_preferences(boolean, boolean, boolean, boolean, boolean, boolean) from public;
+grant execute on function public.update_my_notification_preferences(boolean, boolean, boolean, boolean, boolean, boolean) to authenticated;
 revoke all on function public.set_my_group_notification_preferences(uuid, public.group_notification_level, boolean, boolean) from public;
 grant execute on function public.set_my_group_notification_preferences(uuid, public.group_notification_level, boolean, boolean) to authenticated;
 revoke all on function public.register_my_web_push_subscription(text, text, text, double precision) from public;

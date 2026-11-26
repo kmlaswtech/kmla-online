@@ -20,6 +20,7 @@ import {
 } from "~/features/posts";
 import { Deferred } from "~/shared/components/deferred";
 import { SendMessageButton } from "~/features/messaging/components/send-message-button";
+import { PokeButton } from "~/features/pokes/components/poke-button";
 import { ProfileMediaEditor } from "~/features/profiles/components/profile-media-editor";
 import { formatCohort } from "~/features/profiles/model/format";
 import type { AcceptedProfile } from "~/features/profiles/model/types";
@@ -432,23 +433,44 @@ export function ProfileDetail({
               </div>
 
               {isOwnProfile ? (
-                <Link
-                  to={`/profile/${profile.pub_id}/edit`}
-                  className={buttonVariants({
-                    variant: "default",
-                    size: "sm",
-                    className:
-                      "order-1 mt-5 h-10 w-full basis-full justify-center sm:order-none sm:col-start-3 sm:row-start-1 sm:mt-1 sm:h-auto sm:w-auto sm:py-2",
-                  })}
-                >
-                  <PencilIcon />
-                  프로필 편집
-                </Link>
+                // 다른 사람 프로필의 콕 찌르기 자리에 콕 찌르기 화면으로 가는 길을 둔다. 메뉴에는 두지 않는다(§12.5).
+                <div className="order-1 mt-5 flex basis-full gap-2 sm:order-none sm:col-start-3 sm:row-start-1 sm:mt-1 sm:basis-auto">
+                  <Link
+                    to="/pokes"
+                    className={buttonVariants({
+                      variant: "secondary",
+                      size: "sm",
+                      className:
+                        "h-10 min-w-0 flex-1 justify-center sm:h-auto sm:flex-none sm:py-2",
+                    })}
+                  >
+                    콕 찌르기
+                  </Link>
+                  <Link
+                    to={`/profile/${profile.pub_id}/edit`}
+                    className={buttonVariants({
+                      variant: "default",
+                      size: "sm",
+                      className:
+                        "h-10 min-w-0 flex-1 justify-center sm:h-auto sm:flex-none sm:py-2",
+                    })}
+                  >
+                    <PencilIcon />
+                    프로필 편집
+                  </Link>
+                </div>
               ) : (
-                <SendMessageButton
-                  profileId={profile.id}
-                  className="order-1 mt-5 h-10 w-full basis-full justify-center sm:order-none sm:col-start-3 sm:row-start-1 sm:mt-1 sm:h-auto sm:w-auto sm:py-2"
-                />
+                // 좁은 화면은 두 버튼이 한 줄을 반씩 나눈다. 넓은 화면은 콕 찌르기를 메시지 보내기 왼쪽에 둔다(§12.5).
+                <div className="order-1 mt-5 flex basis-full gap-2 sm:order-none sm:col-start-3 sm:row-start-1 sm:mt-1 sm:basis-auto">
+                  <PokeButton
+                    profileId={profile.id}
+                    className="h-10 min-w-0 flex-1 justify-center sm:h-auto sm:flex-none sm:py-2"
+                  />
+                  <SendMessageButton
+                    profileId={profile.id}
+                    className="h-10 min-w-0 flex-1 justify-center sm:h-auto sm:flex-none sm:py-2"
+                  />
+                </div>
               )}
 
               {profile.description ? (

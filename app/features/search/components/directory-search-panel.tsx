@@ -45,7 +45,7 @@ export function DirectorySearchPanel({
     if (recentEntries.length === 0) {
       return (
         <p className="p-6 text-center text-sm text-muted-foreground">
-          사람이나 그룹 이름으로 검색해 보세요.
+          사람·그룹 이름이나 게시물 내용으로 검색해 보세요.
         </p>
       );
     }

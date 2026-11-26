@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 const OPEN_PARAM = "search";
 const QUERY_PARAM = "q";
+// 그룹 화면과 그룹 홈이 `tab`을 이미 쓴다. 이 훅이 그 이름을 지우면 그룹 검색을 닫을 때 보던 탭을 잃는다.
+const TAB_PARAM = "searchTab";
 
 /** dialog를 연 것이 우리라는 표식. 뒤로가기로 닫을 수 있는지 판단하는 근거다. */
 interface SearchDialogLocationState {
@@ -14,9 +16,12 @@ export interface SearchDialogState {
   open: boolean;
   /** 제출된 검색어. 아직 제출하지 않았으면 빈 문자열이다. */
   submittedQuery: string;
+  /** 결과 탭. 탭을 두는 검색만 쓰며, 고르지 않았으면 `null`이다. */
+  tab: string | null;
   openSearch: () => void;
   closeSearch: () => void;
   submitQuery: (query: string) => void;
+  selectTab: (tab: string | null) => void;
 }
 
 /**
@@ -32,6 +37,9 @@ export interface SearchDialogState {
  * 제출은 push가 아니라 replace다. 그래야 검색어를 몇 번 바꾸든 검색 오버레이가 남기는 entry는
  * 하나고, 뒤로가기 한 번이면 원래 화면으로 돌아온다.
  *
+ * 결과 탭을 두는 검색(전역 검색)은 고른 탭도 `?searchTab=`에 둔다. 검색어와 같은 이유로, 결과에서
+ * 들어갔다 돌아오면 보던 탭이 남아야 한다.
+ *
  * 그룹 게시물 검색과 인명 검색이 같은 훅을 쓴다. 둘은 그룹 상세와 홈에 각각 붙어 한 화면에
  * 함께 뜨지 않으므로, param과 표식을 공유해도 서로의 것을 열거나 닫지 않는다.
  */
@@ -45,6 +53,7 @@ export function useSearchDialogParam(): SearchDialogState {
   const submittedQuery = open
     ? (searchParams.get(QUERY_PARAM)?.normalize("NFC").trim() ?? "")
     : "";
+  const tab = open ? searchParams.get(TAB_PARAM) : null;
 
   const openSearch = useCallback(() => {
     const next = new URLSearchParams(searchParams);
@@ -52,6 +61,7 @@ export function useSearchDialogParam(): SearchDialogState {
     // 새로 여는 검색은 언제나 빈 입력창에서 시작한다. 그룹 게시물 검색은 명세가 못박아 뒀고
     // (기능 명세 §8.9), 인명 검색도 같은 시트라 다르게 둘 이유가 없다.
     next.delete(QUERY_PARAM);
+    next.delete(TAB_PARAM);
     void setSearchParams(next, {
       preventScrollReset: true,
       state: { searchDialogPushed: true } satisfies SearchDialogLocationState,
@@ -69,6 +79,7 @@ export function useSearchDialogParam(): SearchDialogState {
     const next = new URLSearchParams(searchParams);
     next.delete(OPEN_PARAM);
     next.delete(QUERY_PARAM);
+    next.delete(TAB_PARAM);
     void setSearchParams(next, { replace: true, preventScrollReset: true });
   }, [locationState, navigate, searchParams, setSearchParams]);
 
@@ -89,5 +100,28 @@ export function useSearchDialogParam(): SearchDialogState {
     [locationState, searchParams, setSearchParams],
   );
 
-  return { open, submittedQuery, openSearch, closeSearch, submitQuery };
+  // 탭도 검색어처럼 주소에 둬야 결과에서 들어갔다 돌아왔을 때 보던 탭이 남는다. 제출과 같은 이유로 replace다.
+  const selectTab = useCallback(
+    (nextTab: string | null) => {
+      const next = new URLSearchParams(searchParams);
+      if (nextTab) next.set(TAB_PARAM, nextTab);
+      else next.delete(TAB_PARAM);
+      void setSearchParams(next, {
+        replace: true,
+        preventScrollReset: true,
+        state: locationState,
+      });
+    },
+    [locationState, searchParams, setSearchParams],
+  );
+
+  return {
+    open,
+    submittedQuery,
+    tab,
+    openSearch,
+    closeSearch,
+    submitQuery,
+    selectTab,
+  };
 }

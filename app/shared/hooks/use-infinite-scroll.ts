@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 import { useScrollContainer } from "~/shared/lib/scroll-container";
 
@@ -10,6 +16,8 @@ interface Options {
   enabled: boolean;
   /** 페이지를 요청 중이면 `true`. 응답이 오면 다시 관찰을 건다. */
   pending?: boolean;
+  /** 셸 밖의 스크롤 상자(검색 패널 등)에 놓인 목록은 그 상자를 넘긴다. 없으면 셸의 스크롤 영역이다. */
+  root?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -26,9 +34,10 @@ interface Options {
  */
 export function useInfiniteScroll(
   onLoadMore: () => void,
-  { enabled, pending = false }: Options,
+  { enabled, pending = false, root }: Options,
 ): (element: HTMLElement | null) => void {
-  const scrollRef = useScrollContainer();
+  const shellScrollRef = useScrollContainer();
+  const scrollRef = root ?? shellScrollRef;
   const onLoadMoreRef = useRef(onLoadMore);
   const triggeredRef = useRef(false);
 

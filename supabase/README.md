@@ -101,6 +101,8 @@ The school account names are not set by hand: an app admin enters them on `/admi
 
 **Auth URL configuration.** Dashboard, per project.
 
+**OAuth server and access token hook.** Dashboard, per project (accounts §4.8–§4.9). Turn on the OAuth 2.1 server with the authorization path `/oauth/consent`, and enable the Custom Access Token Hook as the Postgres function `public.oauth_access_token_hook`. Enable the hook only after the migration that creates it is deployed to that project: Auth runs it on every token, so a missing function fails every sign-in. Register 연계 서비스 clients (confidential, `client_secret_basic`) in the same place; their secrets stay with the service.
+
 ## Observed declarative-schema gotchas
 
 ### Cross-file dependencies
@@ -137,6 +139,10 @@ If a diff replaces a check constraint with an equivalent expression, restore the
 The `public,private` dump omits policies on `storage.objects`, while a full `storage` dump includes managed internals. Keep only project-owned `storage.objects` policies in `81-storage.sql`.
 
 Schema dumps can also omit extension declarations. Keep project-required extensions explicitly in `01-foundation.sql`.
+
+### Cluster roles
+
+pg-delta does not manage cluster-global roles and refuses `CREATE ROLE` or role membership grants in `schemas/`. `supabase/roles.sql` creates them idempotently for the local and shadow databases before migrations run; the migration that first needs a role creates it the same way for remote projects. Object grants to the role stay in `schemas/`.
 
 ### Windows CLI execution
 

@@ -68,7 +68,7 @@ test("모바일 메뉴는 도구와 설정·프로필 진입을 분리한다", a
     page.getByRole("heading", { name: "메뉴", exact: true }),
   ).toBeVisible();
   const tools = page.getByRole("navigation", { name: "학교생활 기능" });
-  await expect(tools.getByRole("link")).toHaveCount(6);
+  await expect(tools.getByRole("link")).toHaveCount(7);
   await expect(tools.getByRole("link", { name: "기부물품" })).toHaveAttribute(
     "href",
     "/menu/donations",
@@ -93,16 +93,27 @@ test("모바일 메뉴는 도구와 설정·프로필 진입을 분리한다", a
   await page.getByRole("button", { name: "뒤로" }).click();
   await expect(page).toHaveURL(/\/menu$/);
 
-  const sites = page.getByRole("navigation", { name: "학교 사이트" });
-  await expect(sites.getByRole("link")).toHaveCount(3);
-  for (const name of ["홈페이지", "인트라넷", "리로스쿨"]) {
-    const link = sites.getByRole("link", {
+  await expect(
+    page.getByRole("navigation", { name: "학교 사이트" }),
+  ).toHaveCount(0);
+  await tools.getByRole("link", { name: "링크 모음", exact: true }).click();
+  await expect(page).toHaveURL(/\/menu\/links$/);
+  const links = page.getByRole("navigation", { name: "링크 모음" });
+  for (const name of [
+    "KMLA Research Hub",
+    "홈페이지",
+    "인트라넷",
+    "리로스쿨",
+  ]) {
+    const link = links.getByRole("link", {
       name: `${name} (새 탭)`,
       exact: true,
     });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
   }
+  await page.getByRole("button", { name: "뒤로" }).click();
+  await expect(page).toHaveURL(/\/menu$/);
 
   await page.getByRole("link", { name: "설정", exact: true }).click();
   await expect(page).toHaveURL(/\/settings$/);
@@ -130,47 +141,40 @@ test("메뉴는 모바일과 데스크톱에서 구역별로 정돈되고 가로
   await expect(page).toHaveURL(/\/menu$/);
 
   const tools = page.getByRole("navigation", { name: "학교생활 기능" });
-  const sites = page.getByRole("navigation", { name: "학교 사이트" });
-  for (const [width, toolRows, siteRows] of [
-    [320, 3, 2],
-    [390, 3, 2],
-    [767, 3, 2],
-    [768, 2, 1],
-    [820, 2, 1],
-    [1280, 2, 1],
-    [1920, 2, 1],
+  for (const [width, rows] of [
+    [320, 4],
+    [390, 4],
+    [767, 4],
+    [768, 2],
+    [820, 2],
+    [1280, 2],
+    [1920, 2],
   ] as const) {
     await page.setViewportSize({ width, height: 800 });
-    await expect(tools.getByRole("link")).toHaveCount(6);
-    await expect(sites.getByRole("link")).toHaveCount(3);
+    await expect(tools.getByRole("link")).toHaveCount(7);
     await expect(
       page
         .getByRole("navigation", { name: "주요 메뉴" })
         .getByRole("link", { name: "메뉴", exact: true }),
     ).toHaveAttribute("aria-current", "page");
 
-    for (const [nav, rows] of [
-      [tools, toolRows],
-      [sites, siteRows],
-    ] as const) {
-      const boxes = await nav.getByRole("link").evaluateAll((elements) =>
-        elements.map((element) => {
-          const { top, left, right } = element.getBoundingClientRect();
-          return {
-            top,
-            left,
-            right,
-            fits: element.scrollWidth <= element.clientWidth,
-          };
-        }),
-      );
-      expect(new Set(boxes.map(({ top }) => top)).size).toBe(rows);
-      expect(
-        boxes.every(
-          ({ left, right, fits }) => left >= 0 && right <= width && fits,
-        ),
-      ).toBe(true);
-    }
+    const boxes = await tools.getByRole("link").evaluateAll((elements) =>
+      elements.map((element) => {
+        const { top, left, right } = element.getBoundingClientRect();
+        return {
+          top,
+          left,
+          right,
+          fits: element.scrollWidth <= element.clientWidth,
+        };
+      }),
+    );
+    expect(new Set(boxes.map(({ top }) => top)).size).toBe(rows);
+    expect(
+      boxes.every(
+        ({ left, right, fits }) => left >= 0 && right <= width && fits,
+      ),
+    ).toBe(true);
     expect(
       await page
         .getByRole("main")
@@ -221,7 +225,6 @@ test("이전 예약·바로가기 주소는 리다이렉트 없이 없는 페이
     "/util/gongang",
     "/util/gongang/manage",
     "/util/karaoke",
-    "/menu/links",
   ]) {
     await page.goto(path);
     await expect(
