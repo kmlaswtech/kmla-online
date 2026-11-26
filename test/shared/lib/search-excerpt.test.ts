@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { searchExcerpt } from "~/features/messaging/model/message-search";
+import { searchExcerpt } from "~/shared/lib/search-excerpt";
 
 describe("searchExcerpt", () => {
   it("대소문자와 공백 차이를 무시하고 일치한 곳을 나눈다", () => {

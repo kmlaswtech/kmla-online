@@ -31,6 +31,7 @@ const CATEGORIES = [
   "account",
   "school",
   "moderation",
+  "poke",
 ];
 const IMPORTANCES = ["low", "normal", "high"];
 const CATEGORY_TITLES = {
@@ -40,7 +41,11 @@ const CATEGORY_TITLES = {
   account: "계정·권한 알림",
   school: "학교 기능 알림",
   moderation: "운영 조치 알림",
+  poke: "콕 찌르기 알림",
 };
+// 콕 찌르기 카드는 누적 개수 없이 가장 최근 찌르기로 바꾼다(기능 명세 §14.14). 서버 알림이 이미 찌른
+// 사람들을 하나로 모으고 있어, 카드에서 다시 세면 같은 사람을 여러 번 센다.
+const LATEST_ONLY_CATEGORIES = ["poke"];
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -355,7 +360,9 @@ async function showPush(data) {
     : [];
   if (previousDeliveryIds.includes(payload.deliveryId)) return;
 
-  const deliveryIds = [...previousDeliveryIds, payload.deliveryId];
+  const deliveryIds = LATEST_ONLY_CATEGORIES.includes(payload.category)
+    ? [payload.deliveryId]
+    : [...previousDeliveryIds, payload.deliveryId];
   const count = deliveryIds.length;
   const grouped = count > 1;
 

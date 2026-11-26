@@ -117,6 +117,7 @@ object를 가지므로(기능 명세 §18.6) 둘 다 같은 트랜잭션에서 �
 | `profile_media_objects` | 참조 스윕 (§4.2). 탈퇴 시 경로 큐잉 후 즉시 삭제      | 적용 |
 | `profile_permissions`   | 권한 회수·탈퇴 시 즉시. 프로필 CASCADE                | 적용 |
 | `user_timetables`       | 보존 작업 없음. 탈퇴 시 즉시                          | 적용 |
+| `private.poke_pairs`    | 보존 작업 없음. 탈퇴 시 그 사람이 낀 쌍을 즉시 삭제   | 적용 |
 | 나머지 부속 테이블      | 탈퇴 시 `withdraw_account()`가 지운다. 프로필 CASCADE | 적용 |
 
 시간표는 프로필당 한 행이므로 무한히 자라지 않아 별도 정리 작업의 대상이 아니다.

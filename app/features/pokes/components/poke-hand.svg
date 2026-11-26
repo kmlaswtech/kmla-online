@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 -4 57 57" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 손 -->
+  <path d="M16 20 H9 Q6 20 6 23 V37 Q6 40 9 40 H28
+           C33 40 37 38 37.6 35 L38.4 27 Q38.9 23 42.5 23
+           H55 A3.5 3.5 0 0 0 58.5 19.5 V17.5
+           A3.5 3.5 0 0 0 55 14 H32 L29 11
+           Q26 8 23 11 Z" />
+  <!-- 소매 경계 -->
+  <path d="M16 20 V40" />
+</svg>
