@@ -4,7 +4,7 @@ import {
 } from "~/features/messaging/model/conversation-filter";
 import { cn } from "~/shared/lib/utils";
 
-/** 대화 목록의 `전체 · 안 읽음 · 그룹` 구분(기능 명세 §13.2). */
+/** 대화 목록의 `전체 · 읽지 않음 · 그룹` 구분(기능 명세 §13.2). */
 export function ConversationListTabs({
   value,
   onChange,

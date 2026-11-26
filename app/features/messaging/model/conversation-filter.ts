@@ -12,7 +12,7 @@ const TAB_TEXT: Record<
   }
 > = {
   all: { label: "전체", empty: "아직 채팅이 없습니다" },
-  unread: { label: "안 읽음", empty: "읽지 않은 채팅이 없습니다" },
+  unread: { label: "읽지 않음", empty: "읽지 않은 채팅이 없습니다" },
   group: { label: "그룹", empty: "그룹 채팅이 없습니다" },
 };
 

@@ -123,31 +123,17 @@ describe("menu route", () => {
       screen.queryByRole("link", { name: "관리자 페이지" }),
     ).not.toBeInTheDocument();
   });
-  it("opens school sites directly from a separate menu section in new tabs", () => {
+  it("leaves school sites to the links screen", () => {
     renderMenu("member");
 
     expect(
       screen.getByRole("heading", { name: "학교 기능" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "학교 사이트" }),
-    ).toBeInTheDocument();
-    const sites = within(
-      screen.getByRole("navigation", { name: "학교 사이트" }),
-    );
-    expect(sites.getAllByRole("link")).toHaveLength(3);
-    for (const [name, href] of [
-      ["홈페이지", "https://www.minjok.hs.kr/"],
-      ["인트라넷", "https://old.minjok.hs.kr/members/login.php"],
-      ["리로스쿨", "https://minjok.riroschool.kr/"],
-    ]) {
-      const link = sites.getByRole("link", { name: `${name} (새 탭)` });
-      expect(link).toHaveAttribute("href", href);
-      expect(link).toHaveAttribute("target", "_blank");
-      expect(link).toHaveAttribute("rel", "noreferrer");
-    }
+      screen.queryByRole("heading", { name: "학교 사이트" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "바로가기" }),
+      screen.queryByRole("link", { name: "홈페이지 (새 탭)" }),
     ).not.toBeInTheDocument();
   });
 });
