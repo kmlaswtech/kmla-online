@@ -38,6 +38,7 @@ describe("ProfileDetail", () => {
           student_number: null,
           allow_timeline_posts: true,
           is_returning_student: false,
+          status_message: null,
         }}
         isOwnProfile
         viewerName="이한별"
@@ -64,6 +65,44 @@ describe("ProfileDetail", () => {
       "href",
       "/profile/hanbyeol-25/posts/new",
     );
+  });
+
+  it("shows the status message under the name", () => {
+    renderRoute(() => (
+      <ProfileDetail
+        profile={{
+          id: 25,
+          pub_id: "hanbyeol-25",
+          name: "이한별",
+          type: "alumni",
+          role: "member",
+          cohort: 25,
+          academic_track: "international",
+          avatar_path: null,
+          avatar_url: null,
+          cover_path: null,
+          cover_url: null,
+          description: null,
+          status_message: "시험 끝! 🎉",
+          birthday: null,
+          class_no: null,
+          dorm_room: null,
+          department: null,
+          gender: null,
+          phone_number: null,
+          contact_email: null,
+          student_number: null,
+          allow_timeline_posts: true,
+          is_returning_student: false,
+        }}
+        isOwnProfile={false}
+        viewerName="홍길동"
+        viewerAvatarUrl={null}
+        posts={{ posts: [], nextCursor: null }}
+      />
+    ));
+
+    expect(screen.getByText("시험 끝! 🎉")).toBeVisible();
   });
 
   it("does not reuse the avatar as a missing cover image", () => {
@@ -94,6 +133,7 @@ describe("ProfileDetail", () => {
           student_number: null,
           allow_timeline_posts: true,
           is_returning_student: false,
+          status_message: null,
         }}
         isOwnProfile={false}
         viewerName="김관리"
@@ -136,6 +176,7 @@ describe("ProfileDetail", () => {
           student_number: null,
           allow_timeline_posts: true,
           is_returning_student: false,
+          status_message: null,
         }}
         isOwnProfile={false}
         viewerName="김관리"
@@ -187,6 +228,7 @@ describe("ProfileDetail", () => {
           student_number: null,
           allow_timeline_posts: true,
           is_returning_student: false,
+          status_message: null,
         }}
         isOwnProfile
         viewerName="이한별"
@@ -273,6 +315,7 @@ describe("ProfileDetail", () => {
           student_number: null,
           allow_timeline_posts: true,
           is_returning_student: false,
+          status_message: null,
         }}
         isOwnProfile={false}
         viewerName="김관리"
@@ -319,6 +362,7 @@ describe("ProfileDetail", () => {
           student_number: null,
           allow_timeline_posts: true,
           is_returning_student: false,
+          status_message: null,
         }}
         isOwnProfile={false}
         viewerName="김관리"
@@ -368,6 +412,7 @@ describe("ProfileDetail", () => {
           student_number: "20250101",
           allow_timeline_posts: true,
           is_returning_student: false,
+          status_message: null,
         }}
         isOwnProfile={false}
         viewerName="김관리"
