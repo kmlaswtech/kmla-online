@@ -117,7 +117,7 @@ describe("MessagingScreen", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("안 읽음과 그룹 탭으로 대화 목록을 거른다", async () => {
+  it("읽지 않음과 그룹 탭으로 대화 목록을 거른다", async () => {
     const conversations = await listConversations();
     const { user } = renderRoute(() => (
       <MessagingScreen conversations={conversations} hasRoom={false}>
@@ -130,7 +130,7 @@ describe("MessagingScreen", () => {
       "true",
     );
 
-    await user.click(within(tabs).getByRole("button", { name: "안 읽음" }));
+    await user.click(within(tabs).getByRole("button", { name: "읽지 않음" }));
     expect(
       screen.getByRole("link", { name: /학생회 기획부/ }),
     ).toBeInTheDocument();
@@ -154,7 +154,7 @@ describe("MessagingScreen", () => {
     );
     expect(screen.getByText("채팅을 찾지 못했습니다")).toBeInTheDocument();
     await user.clear(screen.getByRole("searchbox", { name: "채팅 검색" }));
-    await user.click(within(tabs).getByRole("button", { name: "안 읽음" }));
+    await user.click(within(tabs).getByRole("button", { name: "읽지 않음" }));
     expect(
       screen.getByRole("link", { name: /학생회 기획부/ }),
     ).toBeInTheDocument();
