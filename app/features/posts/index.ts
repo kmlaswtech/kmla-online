@@ -9,6 +9,7 @@ export {
 } from "~/features/posts/components/post-card-skeleton";
 export { collapseAllPostBodies } from "~/features/posts/components/post-body-clamp";
 export { GroupPostDetail } from "~/features/posts/components/group/group-post-detail";
+export { StaffMark } from "~/features/posts/components/staff-mark";
 export { AnonymousActivityRestrictionNotice } from "~/features/posts/components/anonymous-activity-restriction-notice";
 export { GroupPostEditor } from "~/features/posts/components/group/group-post-editor";
 export { GroupPostSearchDialog } from "~/features/posts/components/group/group-post-search-dialog";

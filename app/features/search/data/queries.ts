@@ -1,10 +1,13 @@
 import { createGroupMediaUrls } from "~/features/groups/data/files";
+import { extractPostPlainText, groupPostPath } from "~/features/posts";
 import { createProfileMediaUrls } from "~/features/profiles/data/media";
 import type { RecentSearchEntry } from "~/features/search/model/recent-searches";
 import type {
   DirectoryGroupResult,
   DirectoryPersonResult,
   DirectorySearchResult,
+  PostSearchCursor,
+  PostSearchPage,
 } from "~/features/search/model/types";
 import { getSupabase } from "~/shared/supabase/client";
 
@@ -44,6 +47,46 @@ export async function searchDirectory(
   }));
 
   return { people, groups };
+}
+
+/** 한 번에 받는 게시물 수(기능 명세 §3.6). */
+export const POST_SEARCH_PAGE_SIZE = 20;
+
+export async function searchMemberGroupPosts(
+  query: string,
+  cursor: PostSearchCursor | null,
+): Promise<PostSearchPage> {
+  const { data, error } = await getSupabase().rpc("search_member_group_posts", {
+    p_query: query,
+    p_limit: POST_SEARCH_PAGE_SIZE,
+    ...(cursor
+      ? {
+          p_cursor_published_at: cursor.publishedAt,
+          p_cursor_post_id: cursor.postId,
+        }
+      : {}),
+  });
+  if (error) throw error;
+
+  const results = (data ?? []).map((row) => ({
+    postId: row.post_id,
+    path: groupPostPath(row.group_slug, row.post_id),
+    groupName: row.group_name,
+    title: row.title,
+    bodyText: extractPostPlainText(row.body),
+    authorName: row.author_name,
+    staff: row.is_staff,
+    publishedAt: row.published_at,
+  }));
+  const last = results.at(-1);
+  return {
+    results,
+    // 꽉 찬 페이지일 때만 다음이 있다고 본다. 마지막 페이지가 딱 20개면 빈 요청이 한 번 더 나간다.
+    nextCursor:
+      last && results.length === POST_SEARCH_PAGE_SIZE
+        ? { publishedAt: last.publishedAt, postId: last.postId }
+        : null,
+  };
 }
 
 export async function resolveRecentSearchEntryUrls(

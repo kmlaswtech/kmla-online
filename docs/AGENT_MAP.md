@@ -123,7 +123,7 @@ means none does, and feature-level tests live under `test/features/<feature>/`.
 | `profiles`         | Profile view and edit, profile media, birthdays                                                                                             | §12, §17.5                                          |
 | `school-notices`   | Latest school intranet notices with bodies (synced by `sync-school-notices`), attachments link to school                                    | §17.10                                              |
 | `school-utilities` | Gongang and karaoke reservations, gongang schedule manager                                                                                  | §17.1–17.3                                          |
-| `search`           | Global search dialog, directory search, recent searches                                                                                     | §3.3, §3.6                                          |
+| `search`           | Global search dialog, directory search, member group post search, recent searches                                                           | §3.3, §3.6                                          |
 | `stories`          | 24-hour photo/text story rail, viewer and composer                                                                                          | §17.6, §6.6                                         |
 | `support`          | FAQ (static content in `content/`), app version card, public admin contacts on auth screens                                                 | §15.11, §15.12, §16.9                               |
 | `timetable`        | Personal timetable, stored per account in the database with a device-local cache                                                            | §17.7                                               |
@@ -269,6 +269,7 @@ Every Supabase call lives in a feature's `data/`. **Called from** is relative to
 | `search_directory`                            | `search/data/queries.ts`                                                        | `53-search.sql`               |
 | `search_group_mention_candidates`             | `posts/data/queries.ts`                                                         | `21-groups.sql`               |
 | `search_group_posts`                          | `posts/data/queries.ts`                                                         | `34-content-api.sql`          |
+| `search_member_group_posts`                   | `search/data/queries.ts`                                                        | `53-search.sql`               |
 | `search_message_recipients`                   | `messaging/data/queries.ts`                                                     | `71-messaging.sql`            |
 | `search_messages`                             | `messaging/data/queries.ts`                                                     | `71-messaging.sql`            |
 | `send_message`                                | `messaging/data/mutations.ts`                                                   | `71-messaging.sql`            |

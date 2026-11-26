@@ -3552,6 +3552,24 @@ export type Database = {
           title: string
         }[]
       }
+      search_member_group_posts: {
+        Args: {
+          p_cursor_post_id?: string
+          p_cursor_published_at?: string
+          p_limit?: number
+          p_query: string
+        }
+        Returns: {
+          author_name: string
+          body: string
+          group_name: string
+          group_slug: string
+          is_staff: boolean
+          post_id: string
+          published_at: string
+          title: string
+        }[]
+      }
       search_message_recipients: {
         Args: { p_query: string }
         Returns: {

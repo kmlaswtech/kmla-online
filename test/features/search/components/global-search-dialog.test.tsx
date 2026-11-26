@@ -5,13 +5,31 @@ import { useNavigate, useSearchParams } from "react-router";
 
 vi.mock("~/features/search/data/queries", () => ({
   searchDirectory: vi.fn().mockResolvedValue({ people: [], groups: [] }),
+  searchMemberGroupPosts: vi.fn().mockResolvedValue({
+    results: [
+      {
+        postId: "post-1",
+        path: "/groups/science/posts/post-1",
+        groupName: "과학부",
+        title: "축제 준비 회의",
+        bodyText: "본문",
+        authorName: "김관리",
+        staff: false,
+        publishedAt: "2026-11-25T00:00:00Z",
+      },
+    ],
+    nextCursor: null,
+  }),
 }));
 vi.mock("~/features/search/hooks/use-recent-search-entries", () => ({
   useRecentSearchEntries: vi.fn().mockReturnValue([]),
 }));
 
 import { GlobalSearchDialog } from "~/features/search/components/global-search-dialog";
-import { searchDirectory } from "~/features/search/data/queries";
+import {
+  searchDirectory,
+  searchMemberGroupPosts,
+} from "~/features/search/data/queries";
 import { useSearchDialogParam } from "~/shared/hooks/use-search-dialog-param";
 import { renderRoute, screen, waitFor } from "../../../router";
 
@@ -33,6 +51,9 @@ function HomeRoute() {
       <output data-testid="search-open">
         {searchParams.get("search") ?? ""}
       </output>
+      <output data-testid="search-tab">
+        {searchParams.get("searchTab") ?? ""}
+      </output>
       <button type="button" onClick={openSearch}>
         검색 열기
       </button>
@@ -51,7 +72,7 @@ describe("GlobalSearchDialog", () => {
     await user.click(screen.getByRole("button", { name: "검색 열기" }));
 
     const input = await screen.findByRole("searchbox", {
-      name: "사람 · 그룹 검색어",
+      name: "사람 · 그룹 · 게시물 검색어",
     });
     await user.type(input, "김민");
     expect(searchDirectory).not.toHaveBeenCalled();
@@ -83,5 +104,40 @@ describe("GlobalSearchDialog", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+  });
+
+  it("keeps the posts tab in the address so returning restores it", async () => {
+    const { user } = renderHome();
+    await user.click(screen.getByRole("button", { name: "검색 열기" }));
+    const input = await screen.findByRole("searchbox", {
+      name: "사람 · 그룹 · 게시물 검색어",
+    });
+    await user.type(input, "축제{Enter}");
+
+    await user.click(await screen.findByRole("tab", { name: "게시물" }));
+    expect(await screen.findByText("과학부")).toBeInTheDocument();
+    expect(searchMemberGroupPosts).toHaveBeenCalledWith("축제", null);
+    expect(screen.getByTestId("search-tab")).toHaveTextContent("posts");
+    expect(
+      screen.getByRole("link", { name: /축제 준비 회의/ }),
+    ).toHaveAttribute("href", "/groups/science/posts/post-1");
+
+    // 새 검색어를 내도 보던 탭을 유지한다.
+    await user.clear(input);
+    await user.type(input, "축제 준비{Enter}");
+    await waitFor(() =>
+      expect(searchMemberGroupPosts).toHaveBeenCalledWith("축제 준비", null),
+    );
+    expect(screen.getByRole("tab", { name: "게시물" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("starts on the people and groups tab", async () => {
+    renderHome("/?search=1&q=%EC%B6%95%EC%A0%9C");
+    expect(
+      await screen.findByRole("tab", { name: "사람·그룹" }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 });
