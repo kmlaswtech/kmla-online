@@ -23,21 +23,30 @@ export type PokeActionData =
 
 /**
  * 방금 찌른 사람은 재검증으로 목록에서 빠져도 이 화면에 있는 동안 `콕 찔렀어요`로 남긴다. 행이 바로 사라지면
- * 손 모션이 끊기고, 누른 자리가 갑자기 다른 사람으로 바뀐다.
+ * 손 모션이 끊기고, 누른 자리가 갑자기 다른 사람으로 바뀐다. 순서는 `next`를 따르고, 빠진 사람만 이전 목록에서
+ * 바로 앞에 있던 사람 뒤에 끼운다. 추천의 다음 페이지는 아래에, 받은 목록의 새 찌르기는 위에 붙는다.
  */
 function keepPoked<Item extends PokePerson>(
   previous: Item[],
   next: Item[],
   poked: ReadonlySet<number>,
 ): Item[] {
-  const nextById = new Map(next.map((item) => [item.profileId, item]));
-  const kept = previous.flatMap((item) => {
-    const fresh = nextById.get(item.profileId);
-    if (fresh) return [fresh];
-    return poked.has(item.profileId) ? [item] : [];
-  });
-  const keptIds = new Set(kept.map((item) => item.profileId));
-  return [...next.filter((item) => !keptIds.has(item.profileId)), ...kept];
+  const nextIds = new Set(next.map((item) => item.profileId));
+  const result = [...next];
+  let anchor: number | null = null;
+  for (const item of previous) {
+    if (!nextIds.has(item.profileId) && poked.has(item.profileId)) {
+      const at =
+        anchor === null
+          ? 0
+          : result.findIndex((kept) => kept.profileId === anchor) + 1;
+      result.splice(at, 0, item);
+    }
+    if (nextIds.has(item.profileId) || poked.has(item.profileId)) {
+      anchor = item.profileId;
+    }
+  }
+  return result;
 }
 
 function useKeptList<Item extends PokePerson>(
