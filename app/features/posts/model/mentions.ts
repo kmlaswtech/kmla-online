@@ -88,36 +88,62 @@ export interface MentionTarget {
   name: string;
 }
 
+const MENTION_CLIPBOARD_PREFIX = "kmla-mention:";
+const MENTION_CLIPBOARD_PUB_ID = /^[a-z0-9-]+$/i;
+
 /**
- * 고른 사람들에게 줄 번호와 그 뒤의 초안. 고른 순서대로 돌려주며 자리가 모자라 번호를 못 받은 사람은 빠진다. 같은 사람은 쓰던 번호를 돌려준다.
- * 번호는 원문의 토큰을 보고 고른다 — 표시형에는 토큰이 없어 언제나 1이 나온다. 한 번에 고른 사람들은 아직 본문에 없으므로 앞사람의 토큰을 이어 붙인 본문으로 다음 번호를 고른다.
- * 본문에서 사라진 번호를 다시 쓸 때는 그 번호의 옛 항목을 버린다.
+ * 클립보드로 실어 나르는 멘션 대상. 복사한 글과 붙여 넣는 글은 번호표가 달라 ordinal로는 누구인지 전할 수 없으므로 공개 ID와 이름을 싣고,
+ * 붙여 넣는 편집기가 제 번호표에 올린다. 편집기는 link `title`에, 읽기 화면의 칩은 `data-mention`에 싣는다.
+ * 공개 ID가 실리는 곳은 잠깐 사는 클립보드뿐이고 본문에는 여전히 ordinal만 남는다 — 그 사이 ID가 바뀌었으면 서버가 저장을 거절한다.
  */
+export function encodeMentionClipboard(target: MentionTarget): string {
+  return `${MENTION_CLIPBOARD_PREFIX}${target.pubId}:${target.name}`;
+}
+
+/** 클립보드에서 읽은 값이 멘션 대상이면 그 대상, 아니면 `null`. 이름은 토큰에 넣을 수 있는 글자만 남긴다. */
+export function decodeMentionClipboard(value: unknown): MentionTarget | null {
+  if (typeof value !== "string" || !value.startsWith(MENTION_CLIPBOARD_PREFIX))
+    return null;
+  const payload = value.slice(MENTION_CLIPBOARD_PREFIX.length);
+  const split = payload.indexOf(":");
+  if (split === -1) return null;
+  const pubId = payload.slice(0, split);
+  const name = sanitizeMentionLabel(payload.slice(split + 1));
+  if (!MENTION_CLIPBOARD_PUB_ID.test(pubId) || name === "") return null;
+  return { pubId, name };
+}
+
+/** 본문에 남아 있는 멘션 번호. */
+export function mentionOrdinals(body: string): number[] {
+  return Array.from(body.matchAll(mentionTokenPattern()), (match) =>
+    Number(match[2]),
+  );
+}
+
+/** 이미 부른 사람은 번호를 유지하고, 새 대상은 본문에서 비어 있는 번호부터 배정한다. */
 export function assignMentionOrdinals(
   entries: MentionDraftEntry[],
   targets: MentionTarget[],
-  body: string,
+  usedOrdinals: Iterable<number>,
 ): { entries: MentionDraftEntry[]; assigned: MentionDraftEntry[] } {
+  const used = new Set(usedOrdinals);
   let next = entries;
-  let pending = body;
   const assigned: MentionDraftEntry[] = [];
+  let freeOrdinal = 1;
   for (const target of targets) {
     const existing = next.find((entry) => entry.pubId === target.pubId);
-    const ordinal =
-      existing &&
-      existing.ordinal !== EVERYONE_MENTION_ORDINAL &&
-      existing.ordinal <= MENTION_LIMIT
-        ? existing.ordinal
-        : nextMentionOrdinal(pending);
-    if (ordinal === null) continue;
-    if (existing?.ordinal !== ordinal) {
-      next = [
-        ...next.filter((entry) => entry.ordinal !== ordinal),
-        { ordinal, pubId: target.pubId, name: target.name },
-      ];
+    let ordinal = existing?.ordinal ?? EVERYONE_MENTION_ORDINAL;
+    if (ordinal < 1 || ordinal > MENTION_LIMIT) {
+      while (used.has(freeOrdinal)) freeOrdinal++;
+      if (freeOrdinal > MENTION_LIMIT) continue;
+      ordinal = freeOrdinal;
     }
-    pending += buildMentionToken(target.name, ordinal);
-    assigned.push({ ordinal, pubId: target.pubId, name: target.name });
+    const entry = { ...target, ordinal };
+    if (existing?.ordinal !== ordinal) {
+      next = [...next.filter((item) => item.ordinal !== ordinal), entry];
+    }
+    used.add(ordinal);
+    assigned.push(entry);
   }
   return { entries: next, assigned };
 }
@@ -419,18 +445,6 @@ export function expandDeletionOverMentions(
     from: Math.min(range.from, ...touched.map((mention) => mention.start)),
     to: Math.max(range.to, ...touched.map((mention) => mention.end)),
   };
-}
-
-/** 본문에서 쓰지 않는 가장 작은 멘션 번호. 모든 번호가 사용 중이면 `null`이다. */
-export function nextMentionOrdinal(body: string): number | null {
-  const used = new Set<number>();
-  for (const match of body.matchAll(mentionTokenPattern())) {
-    used.add(Number(match[2]));
-  }
-  for (let ordinal = 1; ordinal <= MENTION_LIMIT; ordinal += 1) {
-    if (!used.has(ordinal)) return ordinal;
-  }
-  return null;
 }
 
 /** RPC의 `Json` 컬럼을 화면이 쓰는 모양으로 좁힌다. */

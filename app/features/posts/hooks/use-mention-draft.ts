@@ -4,10 +4,12 @@ import {
   MENTION_LIMIT,
   assignMentionOrdinals,
   countMentionTargets,
+  mentionOrdinals,
   normalizeMentions,
   toMentionDraft,
   type MentionCandidate,
   type MentionDraftEntry,
+  type MentionTarget,
   type PostMention,
 } from "~/features/posts/model/mentions";
 
@@ -21,13 +23,12 @@ export function useMentionDraft(initial: PostMention[] = []) {
   );
   const entriesRef = useRef(entries);
 
-  /** 고른 사람들에게 번호를 주고 초안에 올린다(`assignMentionOrdinals()`). 이 번호로 본문에 토큰을 넣는다. */
-  const register = useCallback(
-    (candidates: MentionCandidate[], body: string): MentionDraftEntry[] => {
+  const adopt = useCallback(
+    (targets: MentionTarget[], usedOrdinals: number[]): MentionDraftEntry[] => {
       const { entries: next, assigned } = assignMentionOrdinals(
         entriesRef.current,
-        candidates.map(({ pub_id, name }) => ({ pubId: pub_id, name })),
-        body,
+        targets,
+        usedOrdinals,
       );
       if (next !== entriesRef.current) {
         entriesRef.current = next;
@@ -38,13 +39,29 @@ export function useMentionDraft(initial: PostMention[] = []) {
     [],
   );
 
+  /** 고른 사람들에게 번호를 주고 초안에 올린다(`assignMentionOrdinals()`). 이 번호로 본문에 토큰을 넣는다. */
+  const register = useCallback(
+    (candidates: MentionCandidate[], body: string): MentionDraftEntry[] =>
+      adopt(
+        candidates.map(({ pub_id, name }) => ({ pubId: pub_id, name })),
+        mentionOrdinals(body),
+      ),
+    [adopt],
+  );
+
+  /** 이 번호가 부르는 사람. 복사할 때 편집기가 클립보드에 실을 대상을 찾는다. */
+  const targetOf = useCallback((ordinal: number): MentionTarget | null => {
+    const entry = entriesRef.current.find((item) => item.ordinal === ordinal);
+    return entry ? { pubId: entry.pubId, name: entry.name } : null;
+  }, []);
+
   const reset = useCallback((mentions: PostMention[]) => {
     const next = toMentionDraft(mentions);
     entriesRef.current = next;
     setEntries(next);
   }, []);
 
-  return { entries, register, reset };
+  return { entries, register, adopt, targetOf, reset };
 }
 
 /** 본문에 지금 남아 있는 대상 수로 계산한 남은 자리. */

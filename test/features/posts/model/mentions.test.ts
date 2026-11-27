@@ -13,6 +13,8 @@ import {
   buildMentionToken,
   caretDeletionRange,
   countMentionTargets,
+  decodeMentionClipboard,
+  encodeMentionClipboard,
   expandDeletionOverMentions,
   fromMentionDisplay,
   isMentionDeleteInput,
@@ -506,7 +508,7 @@ describe("assignMentionOrdinals", () => {
     const first = assignMentionOrdinals(
       [],
       [{ pubId: "hanbyeol-25", name: "이한별" }],
-      buildMentionToken("박새벽", 1),
+      [1],
     );
     expect(first.assigned).toEqual([
       { ordinal: 2, pubId: "hanbyeol-25", name: "이한별" },
@@ -515,10 +517,47 @@ describe("assignMentionOrdinals", () => {
     const again = assignMentionOrdinals(
       first.entries,
       [{ pubId: "hanbyeol-25", name: "이한별" }],
-      "",
+      [],
     );
     expect(again.assigned).toEqual(first.assigned);
     expect(again.entries).toBe(first.entries);
+  });
+});
+
+describe("mention clipboard payload", () => {
+  it("carries who a copied mention calls", () => {
+    const payload = encodeMentionClipboard({
+      pubId: "hanbyeol-25",
+      name: "이한별",
+    });
+
+    expect(payload).toBe("kmla-mention:hanbyeol-25:이한별");
+    expect(decodeMentionClipboard(payload)).toEqual({
+      pubId: "hanbyeol-25",
+      name: "이한별",
+    });
+  });
+
+  it("keeps a colon that belongs to the name", () => {
+    expect(
+      decodeMentionClipboard("kmla-mention:hanbyeol-25:3:1 이한별"),
+    ).toEqual({ pubId: "hanbyeol-25", name: "3:1 이한별" });
+  });
+
+  it.each([
+    [null],
+    [undefined],
+    ["이한별"],
+    ["kmla-editor:1b9d6bcd"],
+    ["kmla-mention:"],
+    ["kmla-mention:hanbyeol-25"],
+    ["kmla-mention:hanbyeol-25:"],
+    ["kmla-mention::이한별"],
+    ["kmla-mention:han byeol:이한별"],
+    // 이름에서 토큰 문법을 깨는 글자를 덜어내면 남는 것이 없다.
+    ["kmla-mention:hanbyeol-25:[]"],
+  ])("does not read %j as a mention", (value) => {
+    expect(decodeMentionClipboard(value)).toBeNull();
   });
 });
 

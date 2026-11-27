@@ -55,6 +55,7 @@ import {
   $prose,
   $remark,
   callCommand,
+  getMarkdown,
 } from "@milkdown/utils";
 import {
   BoldIcon,
@@ -81,18 +82,25 @@ import {
   sanitizePostMarkdown,
   toMilkdownMarkdown,
 } from "~/features/posts/model/markdown";
-import type { PostBodyInputHandle } from "~/features/posts/components/editor/post-body-input";
+import type {
+  PostBodyInputHandle,
+  PostBodyMentionClipboard,
+} from "~/features/posts/components/editor/post-body-input";
 import {
   LinkDialog,
   type LinkDraft,
 } from "~/features/posts/components/editor/link-dialog";
 import {
   caretDeletionRange,
+  decodeMentionClipboard,
+  encodeMentionClipboard,
   expandDeletionOverMentions,
   isMentionDeleteInput,
   isMentionHref,
+  mentionOrdinalFromHref,
   sanitizeMentionLabel,
   type DeletionRange,
+  type MentionTarget,
 } from "~/features/posts/model/mentions";
 import {
   remarkPostUnderline,
@@ -101,7 +109,6 @@ import {
 import remarkCjkFriendly from "remark-cjk-friendly/bidi";
 import remarkCjkFriendlyStrikethrough from "remark-cjk-friendly-gfm-strikethrough/bidi";
 
-import { randomUUID } from "~/shared/lib/random-uuid";
 import { cn } from "~/shared/lib/utils";
 import { Button } from "~/shared/ui/button";
 
@@ -144,10 +151,25 @@ const underlineSchema = $markSchema("underline", () => ({
 
 // ProseMirror mark는 기본이 inclusive라 링크 끝에 이어 쓴 글자까지 링크가 된다. 링크는 대화창으로만
 // 걸므로 끝에서 자라지 않게 한다. 멘션도 link mark라 함께 끝이 닫힌다.
-const postLinkSchema = linkSchema.extendSchema((prev) => (ctx) => ({
-  ...prev(ctx),
-  inclusive: false,
-}));
+const postLinkSchema = linkSchema.extendSchema((prev) => (ctx) => {
+  const spec = prev(ctx);
+  return {
+    ...spec,
+    inclusive: false,
+    parseDOM: [
+      // 읽기 화면에서 복사한 멘션 칩(`MentionChip`)은 프로필 링크가 아니라 멘션으로 읽는다. 누구인지는 편집기끼리
+      // 복사할 때처럼 `title`에 실어 `pastedMentions`에 넘긴다.
+      {
+        tag: "a[data-mention]",
+        getAttrs: (dom) => {
+          const title = dom.getAttribute("data-mention");
+          return decodeMentionClipboard(title) ? { href: "", title } : false;
+        },
+      },
+      ...(spec.parseDOM ?? []),
+    ],
+  };
+});
 
 const toggleUnderlineCommand = $command(
   "ToggleUnderline",
@@ -245,23 +267,19 @@ const imeSafeShortcuts = $prose(
 );
 
 /** 본문의 멘션 링크 자리. 같은 멘션이 서식으로 쪼개진 글자 노드들은 한 자리로 잇는다. */
-function mentionRanges(doc: ProseNode): { start: number; end: number }[] {
-  const ranges: { start: number; end: number; href: string }[] = [];
+function mentionRanges(doc: ProseNode) {
+  const ranges: { start: number; end: number; ordinal: number }[] = [];
   doc.descendants((node, pos) => {
     if (!node.isText) return;
-    const href = node.marks.find(
-      (mark) =>
-        mark.type.name === "link" &&
-        typeof mark.attrs.href === "string" &&
-        isMentionHref(mark.attrs.href),
-    )?.attrs.href as string | undefined;
-    if (href === undefined) return;
+    const link = node.marks.find((mark) => mark.type.name === "link");
+    const ordinal = link ? mentionMarkOrdinal(link) : null;
+    if (ordinal === null) return;
     const last = ranges.at(-1);
-    if (last?.end === pos && last.href === href) {
+    if (last?.end === pos && last.ordinal === ordinal) {
       last.end = pos + node.nodeSize;
-      return;
+    } else {
+      ranges.push({ start: pos, end: pos + node.nodeSize, ordinal });
     }
-    ranges.push({ start: pos, end: pos + node.nodeSize, href });
   });
   return ranges;
 }
@@ -308,7 +326,7 @@ const atomicMentions = $prose(
 /** 조각 안 글자 노드의 mark를 바꾼다. `null`을 돌려주면 그 mark를 뺀다. */
 function mapTextMarks(
   fragment: Fragment,
-  map: (mark: Mark) => Mark | null,
+  map: (mark: Mark, node: ProseNode) => Mark | null,
 ): Fragment {
   const children: ProseNode[] = [];
   fragment.forEach((node) => {
@@ -316,7 +334,7 @@ function mapTextMarks(
       children.push(
         node.mark(
           node.marks.flatMap((mark) => {
-            const next = map(mark);
+            const next = map(mark, node);
             return next ? [next] : [];
           }),
         ),
@@ -326,80 +344,122 @@ function mapTextMarks(
   return Fragment.fromArray(children);
 }
 
-function isMentionMark(mark: Mark): boolean {
+/** mark가 멘션 링크이면 그 ordinal, 아니면 `null`. */
+function mentionMarkOrdinal(mark: Mark): number | null {
   const href: unknown = mark.attrs.href;
+  return mark.type.name === "link" && typeof href === "string"
+    ? mentionOrdinalFromHref(href)
+    : null;
+}
+
+/**
+ * 붙여 넣은 글자 노드의 link mark가 싣고 온 멘션 대상. 이름 전체가 한 덩어리로 온 것만 멘션이다 — 일부만 고른 조각을 받으면
+ * `@`가 빠지거나 이름이 잘린 토큰이 되어 서버가 멘션으로 읽지 못한다.
+ */
+function matchesMentionLabel(node: ProseNode, target: MentionTarget): boolean {
+  const label = node.text ?? "";
   return (
-    mark.type.name === "link" && typeof href === "string" && isMentionHref(href)
+    label.startsWith("@") &&
+    sanitizeMentionLabel(label.slice(1)) === target.name
   );
 }
 
 /**
- * 멘션 토큰의 ordinal은 그 글의 멘션 표 안에서만 뜻이 있다. 다른 글에서 복사한 `m:1`을 그대로
- * 받으면 이 글의 1번 대상, 곧 엉뚱한 사람을 부르거나 저장 때 조용히 평문이 된다. 복사할 때 편집기
- * 표식을 link `title`에 실어 두고, 같은 편집기에서 온 멘션만 남기고 나머지는 평문 `@이름`으로 푼다.
+ * 멘션 토큰의 ordinal은 그 글의 멘션 표 안에서만 뜻이 있다. 다른 글에서 복사한 `m:1`을 그대로 받으면 이 글의 1번 대상, 곧 엉뚱한
+ * 사람을 부르거나 저장 때 조용히 평문이 된다. 그래서 복사할 때 번호 대신 대상을 link `title`에 싣고(`encodeMentionClipboard()`),
+ * 붙여 넣을 때 그 대상을 이 글의 멘션 초안에 올려 받은 번호로 바꿔 단다. 대상이 실려 오지 않았거나 번호를 못 받은 멘션은
+ * 평문 `@이름`으로 푼다. link `href`로 가리지 않는다 — Milkdown의 `toDOM`이 `m:` 주소를 비워 클립보드 HTML에는 번호가 남지 않는다.
  */
-const pastedMentions = $prose(() => {
-  const source = `kmla-editor:${randomUUID()}`;
-  return new Plugin({
-    props: {
-      transformCopied: (slice) =>
-        new Slice(
-          mapTextMarks(slice.content, (mark) =>
-            isMentionMark(mark)
-              ? mark.type.create({ ...mark.attrs, title: source })
-              : mark,
-          ),
-          slice.openStart,
-          slice.openEnd,
-        ),
-      transformPasted: (slice) =>
-        new Slice(
-          mapTextMarks(slice.content, (mark) => {
-            if (!isMentionMark(mark)) return mark;
-            if (mark.attrs.title !== source) return null;
-            return mark.type.create({ ...mark.attrs, title: null });
-          }),
-          slice.openStart,
-          slice.openEnd,
-        ),
-    },
-  });
-});
+const pastedMentions = (
+  clipboard: RefObject<PostBodyMentionClipboard | undefined>,
+) =>
+  $prose(
+    () =>
+      new Plugin({
+        props: {
+          transformCopied: (slice) =>
+            new Slice(
+              mapTextMarks(slice.content, (mark) => {
+                const ordinal = mentionMarkOrdinal(mark);
+                if (ordinal === null) return mark;
+                const target = clipboard.current?.targetOf(ordinal);
+                return mark.type.create({
+                  ...mark.attrs,
+                  title: target ? encodeMentionClipboard(target) : null,
+                });
+              }),
+              slice.openStart,
+              slice.openEnd,
+            ),
+          transformPasted: (slice, view) => {
+            const targets = new Map<string, MentionTarget>();
+            slice.content.descendants((node) => {
+              for (const mark of node.marks) {
+                const target = decodeMentionClipboard(mark.attrs.title);
+                if (target && matchesMentionLabel(node, target)) {
+                  targets.set(target.pubId, target);
+                }
+              }
+            });
+            const adopted =
+              targets.size > 0
+                ? (clipboard.current?.adopt(
+                    [...targets.values()],
+                    mentionRanges(view.state.doc).map(({ ordinal }) => ordinal),
+                  ) ?? [])
+                : [];
+            const ordinals = new Map(
+              adopted.map(({ pubId, ordinal }) => [pubId, ordinal]),
+            );
+            return new Slice(
+              mapTextMarks(slice.content, (mark, node) => {
+                // 대상을 싣지 않은 멘션 링크는 번호만으로 누구인지 알 수 없다.
+                const target = decodeMentionClipboard(mark.attrs.title);
+                if (!target)
+                  return mentionMarkOrdinal(mark) === null ? mark : null;
+                if (!matchesMentionLabel(node, target)) return null;
+                const ordinal = ordinals.get(target.pubId);
+                return ordinal
+                  ? mark.type.create({ href: `m:${ordinal}`, title: null })
+                  : null;
+              }),
+              slice.openStart,
+              slice.openEnd,
+            );
+          },
+        },
+      }),
+  );
 
-export default function DesktopMarkdownEditor({
-  initialValue,
-  onValueChange,
-  handleRef,
-  className,
-}: {
+interface DesktopMarkdownEditorProps {
   initialValue: string;
   onValueChange?: (value: string) => void;
   handleRef?: RefObject<PostBodyInputHandle | null>;
+  mentionClipboard?: PostBodyMentionClipboard;
   className?: string;
-}) {
+}
+
+export default function DesktopMarkdownEditor(
+  props: DesktopMarkdownEditorProps,
+) {
   return (
     <MilkdownProvider>
-      <EditorSurface
-        initialValue={initialValue}
-        onValueChange={onValueChange}
-        handleRef={handleRef}
-        className={className}
-      />
+      <EditorSurface {...props} />
     </MilkdownProvider>
   );
+}
+
+function serializePostBody(markdown: string): string {
+  return sanitizePostMarkdown(fromPostEditorMarkdown(markdown));
 }
 
 function EditorSurface({
   initialValue,
   onValueChange,
   handleRef,
+  mentionClipboard,
   className,
-}: {
-  initialValue: string;
-  onValueChange?: (value: string) => void;
-  handleRef?: RefObject<PostBodyInputHandle | null>;
-  className?: string;
-}) {
+}: DesktopMarkdownEditorProps) {
   const input = useRef<HTMLInputElement>(null);
   const lastValue = useRef(
     toMilkdownMarkdown(sanitizePostMarkdown(initialValue)),
@@ -408,6 +468,11 @@ function EditorSurface({
   useEffect(() => {
     onValueChangeRef.current = onValueChange;
   }, [onValueChange]);
+  // 편집기는 한 번만 만들어지므로 붙여넣기 때 지금의 멘션 초안을 보도록 ref로 건넨다.
+  const mentionClipboardRef = useRef(mentionClipboard);
+  useEffect(() => {
+    mentionClipboardRef.current = mentionClipboard;
+  }, [mentionClipboard]);
   const { get } = useEditor(
     (root) =>
       MilkdownEditor.make()
@@ -422,7 +487,7 @@ function EditorSurface({
             handlers: {},
           }));
           ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-            const safe = sanitizePostMarkdown(fromPostEditorMarkdown(markdown));
+            const safe = serializePostBody(markdown);
             if (input.current) input.current.value = safe;
             onValueChangeRef.current?.(safe);
           });
@@ -431,7 +496,7 @@ function EditorSurface({
         .use(history)
         .use(imeSafeShortcuts)
         .use(atomicMentions)
-        .use(pastedMentions)
+        .use(pastedMentions(mentionClipboardRef))
         .use(listener),
     [],
   );
@@ -446,6 +511,10 @@ function EditorSurface({
   useImperativeHandle(
     handleRef,
     () => ({
+      getValue() {
+        const markdown = get()?.action(getMarkdown());
+        return markdown === undefined ? undefined : serializePostBody(markdown);
+      },
       insertMentions(mentions: { label: string; ordinal: number }[]) {
         if (mentions.length === 0) return;
         get()?.action((ctx) => {
